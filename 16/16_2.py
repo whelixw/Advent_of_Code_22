@@ -18,6 +18,7 @@ class Node:
         self.flow = flow
         self.edges = edges
 
+useful_valves=set()
 with(open(file)) as f:
     for line in f:
         line = line.split(" ")
@@ -26,6 +27,12 @@ with(open(file)) as f:
         edges = [i.strip(",").strip() for i in line[9:]]
         print(name, flow_rate,edges)
         graph[name] = Node(flow_rate, edges)
+        if flow_rate > 0:
+            useful_valves.add(name+"o")
+
+
+
+
 base_gates=frozenset()
 
 def bfs_with_flow(start_node, graph, max_time, verbose = False):
@@ -48,7 +55,8 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
             new_open_valves,
             gates,
             path1+["%%"],
-            path2+["%%"]
+            path2+["%%"],
+            ("%%","%%")
         )])
         print(queue)
         return queue
@@ -56,7 +64,7 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
     # The queue stores the state for each path being explored.
     # State: (time, pos_1, pos_2, current_flow, current_released, open_valves, gates, path1, path2)
     #queue = deque([(0, start_node, start_node, 0, 0, frozenset(), base_gates])
-    queue = deque([(0, start_node, start_node, 0, 0, frozenset(), [base_gates, base_gates], list(), list())])
+    queue = deque([(0, start_node, start_node, 0, 0, frozenset(), [base_gates, base_gates], list(), list(), ("00","00"))])
     final_state = False
     ultimate_flow = 81
     max_released = 0
@@ -76,7 +84,7 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
              current_flow,
              current_released,
              open_valves,
-             gates
+             gates  
         ) = queue.popleft()"""
         (
             time,
@@ -87,7 +95,8 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
             open_valves,
             gates,
             path1,
-            path2
+            path2,
+            last_actions
         ) = queue.popleft()
         #if path[:24] == test_path[:time]:
             #debug = True
@@ -119,8 +128,20 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
             print(queue)
         else:
 
-            actions_1 = [current_pos_1]+graph[current_pos_1].edges
-            actions_2 = [current_pos_2]+graph[current_pos_2].edges
+            #actions_1 = [current_pos_1]+graph[current_pos_1].edges
+            #actions_2 = [current_pos_2]+graph[current_pos_2].edges
+            valves_1=set()
+            valves_2=set()
+            if current_pos_1+"o" not in open_valves:
+                valves_1.add(current_pos_1+"o")
+            if current_pos_2+"o" not in open_valves:
+                valves_2.add(current_pos_2+"o")
+
+
+            actions_1 = set(set(graph[current_pos_1].edges)
+                            - set(last_actions[0]).union(set(gates[0]))).union(valves_1)
+            actions_2 = set(set(graph[current_pos_2].edges)
+                            - set(last_actions[1]).union(set(gates[1]))).union(valves_2)
 
             #actions_1 = [1,2,3]
             #actions_2 = [1,2,3]
@@ -132,6 +153,7 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
             #for action_pair in action_pairs: #todo: gates should only be set for one cursor
             for pair_index in range(len(action_pairs)):
                 action_pair = action_pairs[pair_index]
+                #print(action_pair)
                 reset_gates = False
                 new_time = time + 1
                 new_flow = current_flow
@@ -144,6 +166,7 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
                 for index in range(len(action_pair)):
                     prune = True
                     action = action_pair[index]
+                    #print(action)
                     if index == 0:
                         current_pos = current_pos_1
                     elif index == 1:
@@ -152,16 +175,16 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
                         #print(path1, path2, action, index)
                         #print(action_pairs, "\n")
                         pass
-                    if action == current_pos:
+                    if action[-1] == "o":
                         if (
-                            graph[action].flow > 0
+                            graph[action[:-1]].flow > 0
                             and action not in new_open_valves
                         ):
                             new_open_valves = new_open_valves | {action}
-                            new_flow = new_flow + graph[action].flow
+                            new_flow = new_flow + graph[action[:-1]].flow
 
                             reset_gates = True
-                            new_states.append(action)
+                            new_states.append(action[:-1])
 
                         else:
                             if verbose:
@@ -222,9 +245,11 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
                         new_open_valves,
                         new_gates,
                         path1+[new_states[0]],
-                        path2+[new_states[1]]
+                        path2+[new_states[1]],
+                        tuple(new_states)
                     )
                 )
+                    #print(queue)
     return max_released, max_flow, max_state
 
 print(bfs_with_flow("AA", graph, 26))
