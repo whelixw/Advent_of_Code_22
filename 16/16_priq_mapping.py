@@ -65,10 +65,14 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
     def estimate_trajectory(current_released, current_flow, current_time, target_time):
         return current_released+(current_flow*(target_time-current_time))
 
+    def estimate_best_case(current_released, current_flow, current_time, target_time, ultimate_flow):
+        return current_released+current_flow+(ultimate_flow*(target_time-current_time-1))
+
     # The queue stores the state for each path being explored.
     # State: (time, pos_1, pos_2, current_flow, current_released, open_valves, gates, path1, path2)
     #queue = deque([(0, start_node, start_node, 0, 0, frozenset(), base_gates])
     queue = que.PriorityQueue()
+    iteration = 0
     queue.put((0,(0, start_node, start_node, 0, 0, frozenset(), [base_gates, base_gates], list(), list(), ("00","00"))))
     final_state = False
     ultimate_flow = 81
@@ -76,12 +80,13 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
     max_flow = 0
     max_state = []
     max_history = []
+    max_trajectory = 0
     # A 'visited' dictionary is used for pruning. It stores the maximum
     # flow achieved for a given state (location, open_valves).
     visited = {}
     last_time = 0
     debug = False
-    while queue:
+    while queue.qsize() != 0:
         """        (
             time,
              current_pos_1,
@@ -103,6 +108,7 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
             path2,
             last_actions
         ) = queue.get()
+        iteration += 1
         #if path[:24] == test_path[:time]:
             #debug = True
             #pass
@@ -116,6 +122,7 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
             print("time advanced to: ", time)
             print("max flow: ", max_flow)
             print("max released : ", max_released)
+            print("length of queue: ", queue.qsize())
             max_history.append(max_released)
             last_time = time
         old_released = current_released
@@ -229,19 +236,32 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
                         pass
 
                     pass
-                elif (new_flow == ultimate_flow and old_released == old_max):
+                    '''elif (new_flow == ultimate_flow and old_released == old_max):
                     final_state = True
                     queue = break_with_dummy_node(new_time, new_flow,
                                                   new_released,
                                                   new_open_valves, new_gates,
                                                   path1 + [new_states[0]],
-                                                  path2 + [new_states[1]])
+                                                  path2 + [new_states[1]])'''
                 else:
                     if verbose:
                         #print("added state: ", new_states)
                         pass
+                    trajectory = estimate_trajectory(new_released, new_flow, new_time, max_time)
+                    best_case = estimate_best_case(new_released, new_flow, new_time, max_time, ultimate_flow)
+                    if best_case < max_trajectory:
+                        #print("bc is worse than max_trajectory")
+                        if iteration % 10000 == 0:
+                            print(queue.qsize(), max_released)
+                        pass
+                        #continue
+
+                    elif trajectory > max_trajectory:
+                        max_trajectory = trajectory
+                    priority = -trajectory
+
                     queue.put(
-                    (0,
+                    (priority,
                     (
                         new_time,
                         new_states[0],
@@ -257,7 +277,13 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
                     )
                     )
                     #print(queue)
+    print("queue is empty")
     return max_released, max_flow, max_state
 
-print(bfs_with_flow("AA", graph, 26))
+#print(bfs_with_flow("AA", graph, 26))
+#print(bfs_with_flow("AA", graph, 26, verbose=True))
 
+a,b,c = (bfs_with_flow("AA", graph, 5),bfs_with_flow("AA", graph, 6),
+          bfs_with_flow("AA", graph, 7))
+
+print(a,b,c)
