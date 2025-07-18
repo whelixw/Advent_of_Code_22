@@ -1,6 +1,6 @@
 #((105, 44, (['DD', 'DD', 'EE', 'EE'], ['II', 'JJ', 'JJ', 'II'])), (156, 54, (['DD', 'DD', 'AA', 'BB', 'BB'], ['II', 'JJ', 'JJ', 'II', 'AA'])), (210, 54, (['DD', 'DD', 'AA', 'BB', 'BB', 'AA'], ['II', 'JJ', 'JJ', 'II', 'AA', 'DD'])), (266, 56, (['DD', 'DD', 'AA', 'BB', 'BB', 'CC', 'CC'], ['II', 'JJ', 'JJ', 'II', 'AA', 'DD', 'AA'])), (338, 76, (['DD', 'DD', 'EE', 'FF', 'GG', 'HH', 'HH', 'GG'], ['BB', 'BB', 'AA', 'II', 'JJ', 'JJ', 'II', 'AA'])), (414, 76, (['DD', 'DD', 'EE', 'FF', 'GG', 'HH', 'HH', 'GG', 'HH'], ['BB', 'BB', 'AA', 'II', 'JJ', 'JJ', 'II', 'AA', 'DD'])))
 #1540 is too low
-#todo: tighten upper-bound for pruning
+#todo: figure out what is going on. Jailed has weird interactions with the rest, especially opening valves
 from collections import deque
 from heapq import heappush, heappop
 from itertools import product
@@ -238,7 +238,15 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
             jail_times
         ) = heappop(queue)
         iteration += 1
-        decision = True
+        jailed = [False, False]
+        if jail_times[0] > 0:
+            jailed[0] = True
+        if jail_times[1] > 0:
+            jailed[1] = True
+
+        print(jailed, jail_times)
+        print(last_actions)
+        #decision = True
         #if path[:24] == test_path[:time]:
             #debug = True
             #pass
@@ -261,7 +269,7 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
             max_released = current_released
             max_flow = current_flow
             max_state = path1, path2
-            #max_valves = open_valves
+            max_valves = open_valves
 
         if final_state: #and time >= max_time:
             queue = break_with_dummy_node(current_time+1, current_flow, current_released,
@@ -270,14 +278,17 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
             print(queue)
         else:
 
+
+
             #actions_1 = [current_pos_1]+graph[current_pos_1].edges
             #actions_2 = [current_pos_2]+graph[current_pos_2].edges
             valves_1=set()
             valves_2=set()
-
-            if (current_pos_1+"o" not in open_valves and current_pos_1+"o" in useful_valves):
+            #if not jailed[0]:
+            if (current_pos_1 + "o" not in open_valves) and (current_pos_1 + "o" in useful_valves):
                 valves_1.add(current_pos_1+"o")
-            if (current_pos_2+"o" not in open_valves and current_pos_2+"o" in useful_valves):
+            #if not jailed[1]: #not the issue
+            if (current_pos_2 + "o" not in open_valves) and (current_pos_2 + "o" in useful_valves):
                 valves_2.add(current_pos_2+"o")
             '''print(
                 (
@@ -294,23 +305,22 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
                     jail_times)
             )'''
             if open_valves == useful_valves:
-                queue = break_with_dummy_node(current_time + 1, current_flow, current_released, max_time,
+                pass
+                '''queue = break_with_dummy_node(current_time + 1, current_flow, current_released, max_time,
                                               ultimate_flow,
-                                              open_valves, gates, path1, path2)
+                                              open_valves, gates, path1, path2)'''
 
 
             else:
-                if jail_times[0] > 0:
-
+                if jailed[0]:
                     actions_1 = set([current_pos_1])
-                    print(actions_1, "jailed for t: ", jail_times[0])
+                    #print(actions_1, "jailed for t: ", jail_times[0])
                 else:
                     actions_1 = set(set(simple_graph[current_pos_1].edges) #fix graph
                                 - set(last_actions[0]).union(set(gates[0]))).union(valves_1)
-                if jail_times[1] > 0:
-
+                if jailed[1]:
                     actions_2 = set([current_pos_2])
-                    print(actions_2, "jailed for t: ", jail_times[1])
+                    #print(actions_2, "jailed for t: ", jail_times[1])
                 else:
                     actions_2 = set(set(simple_graph[current_pos_2].edges) #fix graph
                                 - set(last_actions[1]).union(set(gates[1]))).union(valves_2)
@@ -319,10 +329,14 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
                 #actions_2 = [1,2,3]
                 action_pairs = (tuple(combo)
                          for combo in product(actions_1, actions_2))
-                #print(tuple(action_pairs))
+                #print(jailed)
                 action_pairs = tuple(action_pairs)
+                if (jailed[0] or jailed[1]):
+                    pass
+                print(jailed, action_pairs)
                 if len(action_pairs) == 1:
-                    decision = False
+                    pass
+                    #decision = False
                 #print(path1,path2)
                 #for action_pair in action_pairs: #todo: gates should only be set for one cursor
                 for pair_index in range(len(action_pairs)):
@@ -341,17 +355,45 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
                     #print(actions_1, actions_2)
                     #print(action_pairs)
                     #print(pair_index)
+                    new_jail_times = [0,0]
                     for index in range(len(action_pair)):
                         prune = True
                         action = action_pair[index]
+                        if action == "JJo":
+                            print(
+                                (
+                                    current_time,
+                                    current_pos_1,
+                                    current_pos_2,
+                                    current_flow,
+                                    current_released,
+                                    open_valves,
+                                    gates,
+                                    path1,
+                                    path2,
+                                    last_actions,
+                                    jail_times))
                         if action[-1] == "o":
                             #print(last_actions, action)
                             if jail_times[index] > 0:
+                                pass
                                 print("wierd")
+                                print(jailed)
+                                print(jail_times)
+                                print(action_pair)
+                                print(path1,path2)
                                 continue
-                            jail_times[index] = simple_graph[last_actions[index]].edge_costs[action[:-1]]
+                            if not jailed[index]:
+                                new_jail_times[index] = 1
+                            else:
+                                print("wtf")
+                                new_jail_times[index] = jail_times[index]
                         else:
-                            jail_times[index] = simple_graph[last_actions[index]].edge_costs[action]
+                            if not jailed[index]:
+                                new_jail_times[index] = simple_graph[last_actions[index]].edge_costs[action]
+                            else:
+                                print("wtf2", jail_times, path1, path2, action_pair)
+                                new_jail_times[index] = jail_times[index]
                         #print(action)
                         if index == 0:
                             current_pos = current_pos_1
@@ -426,37 +468,36 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
                             pass
                         trajectory = estimate_trajectory(new_released, new_flow, new_time, max_time)
                         #test = time.perf_counter()
-                        if decision:
-                            best_case = estimate_best_case(new_released, new_flow, new_time, max_time, sorted_valves,
-                                                           new_open_valves)
-                            '''end = time.perf_counter()
-                            elapsed = end - test
-                            print(f'Time taken: {elapsed:.6f} seconds')
-                            test = time.perf_counter()'''
-                            #best_case= fast_best_case(new_released, new_flow, new_time, max_time, ultimate_flow)
-                            '''end = time.perf_counter()
-                            elapsed = end - test
-                            print(f'Time taken: {elapsed:.6f} seconds')'''
-                            #print(best_case)
-                            if iteration % 10000 == 0:
-                                print(new_released, new_flow, new_time, max_time, sorted_valves.get_sorted_values_excluding(""), new_open_valves)
-                                print(best_case, max_trajectory)
-                                print(iteration)
-                            if best_case < max_trajectory:
-                                #print("bc is worse than max_trajectory")
+                        best_case = estimate_best_case(new_released, new_flow, new_time, max_time, sorted_valves,
+                                                       new_open_valves)
+                        '''end = time.perf_counter()
+                        elapsed = end - test
+                        print(f'Time taken: {elapsed:.6f} seconds')
+                        test = time.perf_counter()'''
+                        #best_case= fast_best_case(new_released, new_flow, new_time, max_time, ultimate_flow)
+                        '''end = time.perf_counter()
+                        elapsed = end - test
+                        print(f'Time taken: {elapsed:.6f} seconds')'''
+                        #print(best_case)
+                        if iteration % 10000 == 0:
+                            print(new_released, new_flow, new_time, max_time, sorted_valves.get_sorted_values_excluding(""), new_open_valves)
+                            print(best_case, max_trajectory)
+                            print(iteration)
+                        if best_case < max_trajectory:
+                            #print("bc is worse than max_trajectory")
 
-                                prune_count+=1
-                                pass
-                                continue
+                            prune_count+=1
+                            pass
+                            continue
 
-                            elif trajectory > max_trajectory:
-                                max_trajectory = trajectory
+                        if trajectory > max_trajectory:
+                            max_trajectory = trajectory
 
                         priority = -trajectory
-                        if jail_times[0] > 0:
-                            jail_times[0]  -= 1
-                        if jail_times[1] > 0:
-                            jail_times[1] -= 1
+                        if new_jail_times[0] > 0:
+                            new_jail_times[0]  -= 1
+                        if new_jail_times[1] > 0:
+                            new_jail_times[1] -= 1
                         heappush(queue,
                         (priority,
                         (
@@ -470,7 +511,7 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
                             path1+[new_states[0]],
                             path2+[new_states[1]],
                             tuple(new_states),
-                            list(jail_times)
+                            list(new_jail_times)
                         )
                         )
                         )
@@ -479,7 +520,7 @@ def bfs_with_flow(start_node, graph, max_time, verbose = False):
 
     print(prune_count, iteration)
     print(best_case)
-    return max_released, max_flow, max_state, max_trajectory, open_valves
+    return max_released, max_flow, max_state, max_trajectory, max_valves
 
 print(bfs_with_flow("AA", graph, 5))
 print("--- %s seconds ---" % (time.time() - start_time))
