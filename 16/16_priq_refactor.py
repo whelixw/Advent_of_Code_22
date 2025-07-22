@@ -3,9 +3,11 @@
 #todo: figure out what is going on. Jailed has weird interactions with the rest, especially opening valves
 from collections import deque
 from heapq import heappush, heappop
-from itertools import product
+from itertools import product, combinations
 import copy
 import time
+from symbol import return_stmt
+
 start_time = time.time()
 
 #import numpy as np
@@ -140,493 +142,127 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
             simulated_time += 1
             #print(simulated_time, simulated_released)
         return simulated_released
+    #most of these things can be redone. There is no reason to ever visit a node without opening it.
+    #also if a node has been visited (and opened) before, it cannot be returned to
+    def move_cursors(queue, state, max_time, max_released):
+        #print("move_cursors")
+        #print(queue, state, max_time, max_released)
+        (current_time, last_actions, current_flow, current_released,
+        open_valves, jail_times) = state
+        actions = last_actions
+        def advance_time(current_time, current_flow, current_released, jail_times, time_to_advance, max_released): #calculates released and reduces jail time
+            #this could do all time advancements
+            #print("advance_time")
+            #print(current_time, current_flow, current_released, jail_times, time_to_advance, max_released)
+            def update_best_state(current_released, max_released):
+                #print( current_released, max_released)
+                if current_released > max_released:
+                    max_released = current_released
+                return max_released
 
-    '''def estimate_best_case(current_released, current_flow, current_time,
-                           target_time, sorted_valves, current_valves):
-        remaining_valves = sorted_valves.get_sorted_values_excluding(list(current_valves))
-        simulated_time = current_time+1
-        simulated_flow = current_flow
-        simulated_released = current_released+current_flow
-        valves_reached = 0
-        while (simulated_time < target_time):
-            if valves_reached < len(remaining_valves):
-                simulated_flow += remaining_valves[valves_reached]
-                #print("added", remaining_valves[valves_reached])
-                valves_reached += 1
-            simulated_released += simulated_flow
-            simulated_time += 1
-        return simulated_released'''
-
-        #return current_released+current_flow+(ultimate_flow*(target_time-current_time-1))
-
-    def move_cursors(state):
-        def advance_time(time_to_advance, current_flow, current_released, jail_times): #calculates released and reduces jail time
-            #alternatively, this could do all time advancements
-            # time is also advanced by dequeue
 
             current_released = current_released+(current_flow*time_to_advance)
+            max_released = update_best_state(current_released, max_released)
+            new_time = current_time + time_to_advance
             for time in jail_times:
-                time += time_to_advance
-            return current_released, jail_times
+                time -= time_to_advance
+            #print("before_return")
+            #print(current_released, jail_times, max_released, new_time)
+            return current_released, jail_times, max_released, new_time
 
-        def move_single_cursor(index, open_valves, gates, current_pos, useful_valves): #calculates actions for one cursor
-            if (current_pos + "o" not in open_valves) and (current_pos + "o" in useful_valves):
+        def move_single_cursor(index, open_valves, current_pos): #calculates actions for one cursor
+            if (current_pos + "o" not in open_valves):
                 valves = set()
                 valves.add(current_pos+"o")
                 actions = set(set(simple_graph[current_pos].edges) #fix graph
-                                - set(last_actions[index]).union(set(gates[index]))).union(valves)
+                                - set(last_actions[index]).union(valves))
                 if actions == set():
                     actions = set("%%")
                 return actions
 
-        def action_queuer(action_pair):# queues actions from action_pairs
-
+        def action_queuer(queue, action_pair, current_flow, open_valves, jail_times, max_time, max_released):# queues actions from action_pairs
+            #print("action_queuer")
+            #print(queue, action_pair, current_flow, open_valves, jail_times, max_time, max_released)
             def prune_actions():
                 pass
 
-            def open_valve(open_valves):
+            def open_valve(current_flow, open_valves):
                 new_open_valves = open_valves.difference({action})
-                new_flow_rate += simple_graph[action[:-1]].flow
-                reset_gates = True
+                new_flow = current_flow + simple_graph[action[:-1]].flow
+                jail_time = -1
                 new_pos = action[:-1]
-                return new_pos, new_flow_rate, new_open_valves, reset_gates
+                return new_pos, new_flow, new_open_valves, jail_time
             def move_to_position(last_action):
-                new_gates = gates | {action}
                 jail_time = simple_graph[last_action].edge_costs[action]
                 new_pos = action
-                return new_pos, new_gates, jail_time
-            def dummy_action():
-                pass
+                return new_pos, jail_time
+            def dummy_action(current_time, jail_time, max_time):
+                new_pos = action
+                jail_time = max_time - current_time
+                return new_pos, jail_time
             for index in range(len(action_pair)):
                 action = action_pair[index]
-                if action[-1] == "o":
-                    open_valve()
-                elif action == "%%":
-                    dummy_action()
-                elif action not in gates[index]:
-                    move_to_position()
+                jail_time = jail_times[index]
+                last_action = last_actions[index]
+                if jail_time == 0:
+                    if action[-1] == "o":
+                        (action, new_flow, new_open_valves,
+                         jail_time) = open_valve(flow_rate, open_valves)
+                        open_valves = new_open_valves
+                        current_flow = new_flow
+                    elif action == "%%":
+                        action = dummy_action(jail_time, max_time)
+                    else:
+                        action, jail_time = move_to_position(last_action)
+            min_jail_time = min(jail_times)
+            #print(current_time, current_flow, jail_times, min_jail_time, max_released)
+            new_released, jail_times, max_released, new_time = advance_time(current_time, current_flow, current_released, jail_times,
+                                                                            min_jail_time, max_released)
+            #print("after", max_released)
+            if min(jail_times) < max_time:
+                priority = 1
+                heappush(queue,
+                         (priority,
+                         (new_time, action_pair, current_flow, new_released,
+                          open_valves, jail_times)))
+            return queue, max_released
 
-            pass
-        if prune_node():
-            continue
+        print(state)
 
-        min_jail_time =  min(jail_times)
-        if min_jail_time + current_time > max_time:
-            trigger_final_state()
-        else: # time should be advanced
-            # until lowest jail time
-
-            new_released, jail_times = advance_time(min_jail_time)
+        print(actions)
 
         if jail_times[0] != jail_times[1]:
             index_min = min(range(len(jail_times)), key=jail_times.__getitem__)
-            new_action = move_single_cursor()
+            new_action = move_single_cursor(index_min)
             actions[index_min] = new_action
         else:
-            actions = (move_single_cursor(),
-                      move_single_cursor())
-        for i in range(len(actions)): #up to one redundant check
-            if actions[i] ==set("%%"):
-                pass
-                # jail_times[index_min] = (max_time - current_time)
-            action_pairs = (tuple(combo)
-                            for combo in product(actions[0], actions[1]))
-            if len(action_pairs) == 1:
-                decision = False
-            for action_pair in action_pairs:
-                action_queuer(action_pair)
+            actions = (move_single_cursor(0, open_valves, last_actions[0],),
+                      move_single_cursor(1, open_valves, last_actions[1]))
+            #print(actions)
+        action_pairs = (tuple(combo)
+                        for combo in product(actions[0], actions[1]))
+        action_pairs = tuple(action_pairs)
+        #print(action_pairs)
+        #print(tuple(action_pairs))
+        if len(tuple(action_pairs)) == 1:
+            decision = False
+        for action_pair in action_pairs:
+            #print(action_pair)
+            if action_pair[0] != action_pairs[1]:
+                #print("max_released")
+                #print(max_released)
+                queue, max_released = action_queuer(queue, action_pair, current_flow, open_valves, jail_times, max_time, max_released)
+        return queue, max_released
 
-
-
-
-
-
-
-            move_single_cursor()
-    def break_with_dummy_node(new_time, new_flow,
-                              new_released, target_time,
-                              ultimate_flow,
-                              new_open_valves, gates,
-                              path1, path2):
-
-        #if (len(queue) == 0 and new_time < max_time) and pair_index == action_pair_len-1:
-        #print("something is going wrong")
-
-        priority = -fast_best_case(new_released, new_flow, new_time, target_time, ultimate_flow)
-        #queue = deque()
-        heappush(queue,
-        (priority,
-        (
-            new_time,
-            "%%",
-            "%%",
-            new_flow,
-            new_released,
-            new_open_valves,
-            gates,
-            path1+["%%"],
-            path2+["%%"],
-            ("%%","%%"),
-            [0,0]
-        )))
-
-
-        #print(queue)
-        return queue
-
-
-
-    # The queue stores the state for each path being explored.
-    # State: (time, pos_1, pos_2, current_flow, current_released, open_valves, gates, path1, path2)
-    #queue = deque([(0, start_node, start_node, 0, 0, frozenset(), base_gates])
-    queue = []
-    iteration = 0
-    heappush(queue,
-             (0,(0, start_node, start_node, 0, 0, frozenset(), [base_gates, base_gates],
-                 list(), list(), ("AA","AA"),
-                 [0,0])))
-    final_state = False
     max_released = 0
-    max_flow = 0
-    max_state = []
-    max_history = []
-    max_trajectory = 0
-    prune_count = 0
-    # A 'visited' dictionary is used for pruning. It stores the maximum
-    # flow achieved for a given state (location, open_valves).
-    visited = {}
-    last_time = 0
-    debug = False
-    while queue:
-        """        (
-            time,
-             current_pos_1,
-             current_pos_2,
-             current_flow,
-             current_released,
-             open_valves,
-             gates  
-        ) = queue.popleft()"""
-        _, (
-            current_time,
-            current_pos_1,
-            current_pos_2,
-            current_flow,
-            current_released,
-            open_valves,
-            gates,
-            path1,
-            path2,
-            last_actions,
-            jail_times
-        ) = heappop(queue)
-        iteration += 1
-        jailed = [False, False]
-        if jail_times[0] > 0:
-            jailed[0] = True
-        if jail_times[1] > 0:
-            jailed[1] = True
+    queue = []
+    heappush(queue,
+             (0,
+              (0, (start_node, start_node), 0, 0, frozenset(), [1, 1])))
+    priority, state = heappop(queue)
+    #print("huh")
+    #print(queue, state, max_time, max_released)
+    queue, max_released = move_cursors(queue, state, max_time, max_released)
+    return queue
 
-        '''print(jailed, jail_times)
-        print(last_actions)'''
-        decision = True
-        #if path[:24] == test_path[:time]:
-            #debug = True
-            #pass
-        if current_time >= max_time:
-            if debug:
-                pass
-                #print(path, current_flow, current_released)
-            continue #leaves iteration
-        if current_time == last_time+1:
-            old_max = max_released
-            print("time advanced to: ", current_time)
-            print("max flow: ", max_flow)
-            print("max released : ", max_released)
-            print("length of queue: ", len(queue))
-            max_history.append(max_released)
-            last_time = current_time
-        old_released = current_released
-        current_released += current_flow
-        if current_released > max_released:
-            max_released = current_released
-            max_flow = current_flow
-            max_state = path1, path2
-            max_valves = open_valves
-
-        if final_state: #and time >= max_time:
-            queue = break_with_dummy_node(current_time+1, current_flow, current_released,
-                                                       new_open_valves, gates, path1, path2)
-            print("queue")
-            print(queue)
-        else:
-
-
-
-            #actions_1 = [current_pos_1]+graph[current_pos_1].edges
-            #actions_2 = [current_pos_2]+graph[current_pos_2].edges
-            valves_1=set()
-            valves_2=set()
-            #if not jailed[0]:
-            if (current_pos_1 + "o" not in open_valves) and (current_pos_1 + "o" in useful_valves):
-                valves_1.add(current_pos_1+"o")
-            #if not jailed[1]: #not the issue
-            if (current_pos_2 + "o" not in open_valves) and (current_pos_2 + "o" in useful_valves):
-                valves_2.add(current_pos_2+"o")
-            '''print(
-                (
-                    current_time,
-                    current_pos_1,
-                    current_pos_2,
-                    current_flow,
-                    current_released,
-                    open_valves,
-                    gates,
-                    path1,
-                    path2,
-                    last_actions,
-                    jail_times)
-            )'''
-            if open_valves == useful_valves:
-                pass
-                queue = break_with_dummy_node(current_time + 1, current_flow, current_released, max_time,
-                                              ultimate_flow,
-                                              open_valves, gates, path1, path2)
-
-
-            else:
-                if jailed[0]:
-                    actions_1 = set([current_pos_1])
-                    #print(actions_1, "jailed for t: ", jail_times[0])
-                else:
-                    actions_1 = set(set(simple_graph[current_pos_1].edges) #fix graph
-                                - set(last_actions[0]).union(set(gates[0]))).union(valves_1)
-                if jailed[1]:
-                    actions_2 = set([current_pos_2])
-                    #print(actions_2, "jailed for t: ", jail_times[1])
-                else:
-                    actions_2 = set(set(simple_graph[current_pos_2].edges) #fix graph
-                                - set(last_actions[1]).union(set(gates[1]))).union(valves_2)
-
-                #actions_1 = [1,2,3]
-                #actions_2 = [1,2,3]
-                action_pairs = (tuple(combo)
-                         for combo in product(actions_1, actions_2))
-                #print(jailed)
-                action_pairs = tuple(action_pairs)
-                if (jailed[0] or jailed[1]):
-                    pass
-                #print(jailed, action_pairs)
-                if len(action_pairs) == 1:
-                    decision = False
-                #print(path1,path2)
-                #for action_pair in action_pairs: #todo: gates should only be set for one cursor
-                for pair_index in range(len(action_pairs)):
-                    action_pair = action_pairs[pair_index]
-
-                    #print(action_pair)
-                    reset_gates = False
-                    new_time = current_time + 1
-                    new_flow = current_flow
-                    new_states = list()
-                    new_released = current_released
-                    new_open_valves = open_valves
-                    #print("gates: ", gates, current_time)
-                    new_gates = copy.deepcopy(gates)
-                    #print(path1+[action_pair[0]], path2+[action_pair[1]])
-                    #print(actions_1, actions_2)
-                    #print(action_pairs)
-                    #print(pair_index)
-                    new_jail_times = [0,0]
-                    for index in range(len(action_pair)):
-                        prune = True
-                        action = action_pair[index]
-                        '''if action == "JJo":
-                            print(
-                                (
-                                    current_time,
-                                    current_pos_1,
-                                    current_pos_2,
-                                    current_flow,
-                                    current_released,
-                                    open_valves,
-                                    gates,
-                                    path1,
-                                    path2,
-                                    last_actions,
-                                    jail_times))'''
-                        if action[-1] == "o":
-                            #print(last_actions, action)
-                            if jail_times[index] > 0:
-                                pass
-                                '''print("wierd")
-                                print(jailed)
-                                print(jail_times)
-                                print(action_pair)
-                                print(path1,path2)'''
-                                continue
-                            if not jailed[index]:
-                                new_jail_times[index] = 1
-                            else:
-                                #print("wtf")
-                                new_jail_times[index] = jail_times[index]
-                        else:
-                            if not jailed[index]:
-                                new_jail_times[index] = simple_graph[last_actions[index]].edge_costs[action]
-                            else:
-                                #print("wtf2", jail_times, path1, path2, action_pair)
-                                new_jail_times[index] = jail_times[index]
-                        #print(action)
-                        if index == 0:
-                            current_pos = current_pos_1
-                        elif index == 1:
-                            current_pos = current_pos_2
-                        '''if action in {"HHo"}:
-                            print(path1, path2, action, index, jail_times)
-                            #print(action_pairs, "\n")
-                            pass'''
-                        if action[-1] == "o":
-                            if jail_times[index] > 0:
-                                print("something wrong: ", action, jail_times[index])
-                            if (
-                                simple_graph[action[:-1]].flow > 0 #fix_graph
-                                and action not in new_open_valves
-                            ):
-                                new_open_valves = new_open_valves | {action}
-                                new_flow = new_flow + simple_graph[action[:-1]].flow #fix_graph
-
-                                reset_gates = True
-                                #print(action[:-1])
-                                new_states.append(action[:-1])
-
-                            else:
-                                if verbose:
-                                    pass
-                                    print("prune action ", action, "valves illegal")
-
-                                break
-                        else:
-                            #print(gates," ",[path1, path2])
-                            if action not in gates[index] or reset_gates: #this line seems wierd to me
-                                if current_time > 3:
-                                    if max_history[current_time-3] < current_released:
-                                        prune = False
-                                else:
-                                    prune = False
-                                if not prune:
-                                    #print("adding to gates: ", action)
-                                    new_gates[index] = new_gates[index] | {action}
-                                    new_states.append(action)
-                            if prune:
-                                if verbose:
-                                    paths = [path1, path2]
-                                    paths[index] = paths[index]+[action]
-                                    print("pruned, ", action, " due to gates or time ", paths)
-                                    #print(gates, index)
-
-
-                                break
-
-
-                    if reset_gates:
-                        new_gates = [base_gates, base_gates]
-                        debug = False
-                    if len(new_states) != 2:
-                        if verbose:
-                            print("err: new states: ", new_states, path1, path2)
-                            continue
-
-                        '''elif (new_flow == ultimate_flow and old_released == old_max):
-                        final_state = True
-                        queue = break_with_dummy_node(new_time, new_flow,
-                                                      new_released,
-                                                      new_open_valves, new_gates,
-                                                      path1 + [new_states[0]],
-                                                      path2 + [new_states[1]])'''
-                    else:
-                        if verbose:
-                            #print("added state: ", new_states)
-                            pass
-                        trajectory = estimate_trajectory(new_released, new_flow, new_time, max_time)
-                        #test = time.perf_counter()
-                        if decision:
-                            '''best_case = estimate_best_case(new_released, new_flow, new_time, max_time, sorted_valves,
-                                                           new_open_valves)'''
-                            '''end = time.perf_counter()
-                            elapsed = end - test
-                            print(f'Time taken: {elapsed:.6f} seconds')
-                            test = time.perf_counter()'''
-                            best_case= fast_best_case(new_released, new_flow, new_time, max_time, ultimate_flow)
-                            '''end = time.perf_counter()
-                            elapsed = end - test
-                            print(f'Time taken: {elapsed:.6f} seconds')'''
-                            if best_case < max_trajectory:
-                                #print("bc is worse than max_trajectory")
-
-                                prune_count+=1
-                                continue
-
-                        #print(best_case)
-                        if iteration % 10000 == 0:
-                            print(new_released, new_flow, new_time, max_time, sorted_valves.get_sorted_values_excluding(""), new_open_valves)
-                            print(max_trajectory)
-                            print(iteration, prune_count)
-                            print(queue)
-
-
-                        if trajectory > max_trajectory:
-                            max_trajectory = trajectory
-
-                        priority = -trajectory
-                        if new_jail_times[0] > 0:
-                            new_jail_times[0]  -= 1
-                        if new_jail_times[1] > 0:
-                            new_jail_times[1] -= 1
-                        heappush(queue,
-                        (priority,
-                        (
-                            new_time,
-                            new_states[0],
-                            new_states[1],
-                            new_flow,
-                            new_released,
-                            new_open_valves,
-                            new_gates,
-                            path1+[new_states[0]],
-                            path2+[new_states[1]],
-                            tuple(new_states),
-                            list(new_jail_times)
-                        )
-                        )
-                        )
-                        #print(queue)
-    #print("queue is empty")
-
-    print(prune_count, iteration)
-    print(best_case)
-    return max_released, max_flow, max_state, max_trajectory, max_valves
-
-print(bfs_with_flow("AA", simple_graph, 26))
-print("--- %s seconds ---" % (time.time() - start_time))
-#print(bfs_with_flow("AA", graph, 26, verbose=True))
-
-'''a,b,c = (bfs_with_flow("AA", graph, 5),bfs_with_flow("AA", graph, 6),
-          bfs_with_flow("AA", graph, 7))
-
-print(a,b,c)'''
-
-'''results = (bfs_with_flow("AA", graph, 5),bfs_with_flow("AA", graph, 6),
-          bfs_with_flow("AA", graph, 7), bfs_with_flow("AA", graph, 8),
-            bfs_with_flow("AA", graph, 9), bfs_with_flow("AA", graph, 10))
-
-print(results)'''
-
-'''test1 = (136, 35, 6, 14, [22, 21, 20, 13, 3, 2], frozenset({'BBo', 'DDo', 'CCo'}))
-valves_dict
-sorted_valves = SortedContainersExcluder(valves_dict)
-
-estimate_best_case(136, 35, 6, 14, sorted_valves, frozenset({'BBo', 'DDo', 'CCo'}))'''
-#sorted_valves._data
-'''#T=6, TARGET= 14
-136+35+(35+22)+(35+22+21)+(35+22+21+3)+(35+22+21+3+2)*4
-7       8        9              10          11'''
+print(bfs_with_flow("AA", simple_graph, 5))
