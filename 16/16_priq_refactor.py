@@ -1,5 +1,5 @@
 #((105, 44, (['DD', 'DD', 'EE', 'EE'], ['II', 'JJ', 'JJ', 'II'])), (156, 54, (['DD', 'DD', 'AA', 'BB', 'BB'], ['II', 'JJ', 'JJ', 'II', 'AA'])), (210, 54, (['DD', 'DD', 'AA', 'BB', 'BB', 'AA'], ['II', 'JJ', 'JJ', 'II', 'AA', 'DD'])), (266, 56, (['DD', 'DD', 'AA', 'BB', 'BB', 'CC', 'CC'], ['II', 'JJ', 'JJ', 'II', 'AA', 'DD', 'AA'])), (338, 76, (['DD', 'DD', 'EE', 'FF', 'GG', 'HH', 'HH', 'GG'], ['BB', 'BB', 'AA', 'II', 'JJ', 'JJ', 'II', 'AA'])), (414, 76, (['DD', 'DD', 'EE', 'FF', 'GG', 'HH', 'HH', 'GG', 'HH'], ['BB', 'BB', 'AA', 'II', 'JJ', 'JJ', 'II', 'AA', 'DD'])))
-#1540 is too low
+#2385?
 #todo: right now the queue keeps expanding. I need a way to fix that
 # the minimal problem of t=3 gives the correct solution, now I want to implement a way of tracing the best states
 # currently the sets of visited nodes and paths seem to improperly update.
@@ -14,7 +14,7 @@ start_time = time.time()
 
 #import numpy as np
 #import heapq
-file = "16/test.txt"
+file = "16/input.txt"
 all_paths = []
 best_states = []
 
@@ -109,7 +109,7 @@ print("ultimate_flow:", ultimate_flow)
 valve_set = set(valve_names)
 
 base_gates=frozenset()
-
+max_flow = 0
 def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
 
     #most of these things can be redone. There is no reason to ever visit a node without opening it.
@@ -119,14 +119,32 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
         #print(queue, state, max_time, max_released)
         (current_time, actions, current_flow, current_released,
         open_valves, jail_times, valve_set, path1, path2) = state
+
+        def prune_actions(max_released, current_released, current_flow, current_time, max_time, ultimate_flow):
+            prune = False
+
+            def estimate_trajectory(current_released, current_flow, current_time, target_time):
+                return current_released + (current_flow * (target_time - current_time))
+
+            def fast_best_case(current_released, current_flow, current_time, target_time, ultimate_flow):
+                return current_released + current_flow + (ultimate_flow * (target_time - current_time - 1))
+
+            trajectory = estimate_trajectory(current_released, current_flow, current_time, max_time)
+            best_case = fast_best_case(current_released, current_flow, current_time, max_time, ultimate_flow)
+            if max_released > best_case:
+                prune = True
+            return prune, trajectory
         #print("tste", state)
         def heapq_action(queue, new_time, action_pair, current_flow, new_released, open_valves, jail_times, new_valve_set, path1, path2, priority = 1):
             #print(path1+[action_pair[0]])
             #print(path2+[action_pair[1]])
-            heappush(queue,
-                     (priority,
-                      (new_time, action_pair, current_flow, new_released,
-                       open_valves, jail_times, new_valve_set.difference(set(action_pair)), path1+[action_pair[0]],path2+[action_pair[1]])))
+            prune, trajectory = prune_actions(max_released, new_released, current_flow, new_time, max_time, ultimate_flow)
+            if not prune:
+                priority = -trajectory
+                heappush(queue,
+                         (priority,
+                          (new_time, action_pair, current_flow, new_released,
+                           open_valves, jail_times, new_valve_set.difference(set(action_pair)), path1+[action_pair[0]],path2+[action_pair[1]])))
             return queue
 
         def advance_time(current_time, current_flow, current_released, jail_times, time_to_advance, max_released,
@@ -188,8 +206,8 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
             new_jail_times = jail_times.copy()
             #current_released = current_released.copy() #are they needed
             #current_flow = current_flow.copy()
-            def prune_actions():
-                pass
+
+
 
             def open_valve(current_action, current_flow, current_released, jail_time, valve_set): #todo: add negative offset to current
                 # released. serves to delay the flow
@@ -200,6 +218,8 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
                 if current_time + jail_time < max_time:
 
                     new_flow = current_flow + simple_graph[current_action].flow #increase flow
+                    '''if new_flow > max_flow:
+                        max_flow = new_flow'''
                     new_released = current_released - (simple_graph[current_action].flow*jail_time) #add offset
                     #print("enough time:", current_time + jail_time, max_time, new_flow, new_released)
                 else:
@@ -341,7 +361,7 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
     return max_released
 
 print(bfs_with_flow("AA", simple_graph, 26))
-print(all_paths)
-
+#print(all_paths)
+print("--- %s seconds ---" % (time.time() - start_time))
 print(best_states[-1])
 #print(best_states)
