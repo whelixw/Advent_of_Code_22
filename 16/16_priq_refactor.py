@@ -2,19 +2,21 @@
 #1540 is too low
 #todo: right now the queue keeps expanding. I need a way to fix that
 # Aditionally, flow increase is improperly implemented. Flow should increase when jailed time moves to zero from more
+# there is a problem with missing actions when pruning through move_single_cursor
 from collections import deque
 from heapq import heappush, heappop
 from itertools import product, combinations
 import copy
 import time
-from symbol import return_stmt
+from symbol import return_stmt, break_stmt
 
 start_time = time.time()
 
 #import numpy as np
 #import heapq
 file = "16/test.txt"
-
+all_paths = []
+best_states = []
 
 
 from sortedcontainers import SortedList
@@ -117,34 +119,36 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
         #print(queue, state, max_time, max_released)
         (current_time, actions, current_flow, current_released,
         open_valves, jail_times, valve_set, path1, path2) = state
-        print("tste", state)
+        #print("tste", state)
         def heapq_action(queue, new_time, action_pair, current_flow, new_released, open_valves, jail_times, new_valve_set, path1, path2, priority = 1):
-            print(path1+[action_pair[0]])
-            print(path2+[action_pair[1]])
+            #print(path1+[action_pair[0]])
+            #print(path2+[action_pair[1]])
             heappush(queue,
                      (priority,
                       (new_time, action_pair, current_flow, new_released,
                        open_valves, jail_times, new_valve_set, path1+[action_pair[0]],path2+[action_pair[1]])))
             return queue
 
-        def advance_time(current_time, current_flow, current_released, jail_times, time_to_advance, max_released, max_time): #calculates released and reduces jail time
+        def advance_time(current_time, current_flow, current_released, jail_times, time_to_advance, max_released,
+                         max_time,  path1, path2, action_pair): #calculates released and reduces jail time
             #this could do all time advancements
             #print("advance_time")
             total_time =  current_time + time_to_advance
             if total_time > max_time:
                 time_to_advance -= total_time-max_time
             #print(current_time, current_flow, current_released, jail_times, time_to_advance, max_released)
-            def update_best_state(current_released, max_released):
-                print("rel,", current_released, max_released)
+            def update_best_state(current_released, max_released, path1, path2, action_pair):
+                #print("rel,", current_released, max_released)
                 if current_released > max_released:
                     max_released = current_released
                     print("new_max_released:", max_released)
-                    print(path1, path2, action_pair, valve_set)
+                    best_states.append(tuple([path1, path2, action_pair, valve_set]))
+                    #print(path1, path2, action_pair, valve_set)
                 return max_released
 
 
             current_released = current_released+(current_flow*time_to_advance)
-            max_released = update_best_state(current_released, max_released)
+            max_released = update_best_state(current_released, max_released, path1, path2, action_pair)
             new_time = current_time + time_to_advance
             #print(time_to_advance, jail_times)
             for i in range(len(jail_times)):
@@ -166,8 +170,15 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
                 actions = valve_set - set([current_pos]) #fix graph
 
             #print("odde;",current_pos, actions)
+            actions_to_remove = set()
+            for action in actions: #prune_actions
+                if simple_graph[current_pos].edge_costs[action] + current_time > max_time:
+                    print("no", action, current_time, simple_graph[current_pos].edge_costs[action], max_time)
+                    actions_to_remove.add(action)
+            actions = actions - actions_to_remove
             if actions == set():
-                actions = set("%%")
+                actions = set(["%%"])
+            print(actions)
             return actions
 
         def action_queuer(queue, current_time, action_pair, current_flow, current_released, open_valves, jail_times, max_time, max_released, valve_set):# queues actions from action_pairs
@@ -182,13 +193,15 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
 
             def open_valve(current_action, current_flow, current_released, jail_time, valve_set): #todo: add negative offset to current
                 # released. serves to delay the flow
-                #print("open_valve")
-                #print(current_action, valve_set)
+                print("open_valve")
+                print(current_time, current_action, valve_set)
                 new_valve_set = valve_set.difference(set([current_action]))
-                jail_time += 1
+                #jail_time += 1
                 if current_time + jail_time < max_time:
+
                     new_flow = current_flow + simple_graph[current_action].flow #increase flow
                     new_released = current_released - (simple_graph[current_action].flow*jail_time) #add offset
+                    print("enough time:", current_time + jail_time, max_time, new_flow, new_released)
                 else:
                     new_flow = current_flow
                     new_released = current_released
@@ -206,7 +219,7 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
 
                 #new_pos = action
                 return jail_time, new_valve_set, new_flow, new_released
-            def dummy_action(current_time, jail_time, max_time):
+            def dummy_action(current_time, max_time):
                 print("dummy_action")
                 #new_pos = action
                 jail_time = max_time - current_time
@@ -231,11 +244,11 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
                     elif action_pair[index] == actions[index]: #jailed
                         pass
                     else:
-                        print(actions[index], action_pair[index], current_flow, current_released, valve_set)
+                        #print(actions[index], action_pair[index], current_flow, current_released, valve_set)
                         new_jail_times[index], new_valve_set, current_flow, current_released = move_to_position(actions[index], action_pair[index], current_flow, current_released, valve_set)
-                        print("j",jail_times[index])
-                        print(new_valve_set)
-                print(jail_times)
+                        #print("j",jail_times[index])
+                        #print(new_valve_set)
+                #print(jail_times)
 
             min_jail_time = min(new_jail_times)
             if min_jail_time == 0:
@@ -243,16 +256,17 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
 
                 print(actions, action_pair,current_time, current_flow, current_released, jail_times, min_jail_time, max_released)
 
-            print("ctime:", current_time)
-            print(current_time, current_flow, jail_times, min_jail_time, max_released)
+            #print("ctime:", current_time)
+            #print(current_time, current_flow, jail_times, min_jail_time, max_released)
 
 
             current_released, new_jail_times, max_released, new_time = advance_time(current_time, current_flow,
                                                                             current_released, new_jail_times,
-                                                                            min_jail_time, max_released, max_time)
+                                                                            min_jail_time, max_released, max_time,
+                                                                            path1, path2, action_pair)
 
-            print("ntime", new_time)
-            print("after", max_released)
+            #print("ntime", new_time)
+            #print("after", max_released)
             '''if (min(jail_times) + new_time) < max_time: # don't know if this should be min_time + new_new_time
                 priority = 1
                 heappush(queue,
@@ -262,6 +276,10 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
             if new_time < max_time:
                 queue = heapq_action(queue, new_time, action_pair, current_flow, current_released,
                           open_valves, new_jail_times, new_valve_set, path1, path2)
+            else:
+                print(path1+[action_pair[0]])
+                print(path2+[action_pair[1]])
+                all_paths.append((path1+[action_pair[0]],path2+[action_pair[1]]))
             return queue, max_released
 
         #print(state)
@@ -293,11 +311,14 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
         if len(tuple(action_pairs)) == 1:
             decision = False
         for action_pair in action_pairs:
-            #print(action_pair)
-            if action_pair[0] != action_pairs[1] and current_time < max_time:
+            if ((action_pair[0] != action_pair[1] or
+                (action_pair[0] == "%%" and action_pair[1] == "%%"))
+                    and current_time < max_time):
                 #print("max_released")
                 #print(max_released)
                 #print(action_pair)
+
+
                 queue, max_released = action_queuer(queue, current_time, action_pair,
                                                     current_flow, current_released, open_valves,
                                                     jail_times, max_time, max_released, valve_set)
@@ -316,4 +337,6 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
         queue, max_released = move_cursors(queue, state, max_time, max_released)
     return max_released
 
-print(bfs_with_flow("AA", simple_graph, 5))
+print(bfs_with_flow("AA", simple_graph, 3))
+print(all_paths)
+print(best_states[-1])
