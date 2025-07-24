@@ -297,7 +297,7 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
             #print("zz", new_action)
             actions_list[index_min] = new_action
             other_index= 1-index_min
-            print(actions_list[other_index])
+            #print(actions_list[other_index])
             actions_list[other_index] = [actions_list[other_index]]
             #print("aaaa",actions_list)
             new_actions = tuple(actions_list)
@@ -340,7 +340,7 @@ def bfs_with_flow(start_node, simple_graph, max_time, verbose = False):
         queue, max_released = move_cursors(queue, state, max_time, max_released)
     return max_released
 
-print(bfs_with_flow("AA", simple_graph, 5))
+print(bfs_with_flow("AA", simple_graph, 26))
 print(all_paths)
 
 print(best_states[-1])
