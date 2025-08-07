@@ -152,6 +152,7 @@ pass
 
 
 def drop_new_piece(chamber, movement_list, tetris_shape, time):
+    #should take perimeter, and return new perimeter
     global global_min_y
     
     def check_colliding_direction(chamber, tuple_of_coords, direction): 
@@ -174,9 +175,10 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
         #print(coordinate_pairs)
         for coordinates in coordinate_pairs:
             #print(coordinates)
-            if not isValid(chamber.shape, coordinates):
+            if not isValid(chamber.shape, coordinates): #there will be no chamber matrix
                 return True
-        if np.any(chamber[positions_to_check] == True):
+        if np.any(chamber[positions_to_check] == True): #this check should be changed.
+            #check if it is contained in the perimeter set instead  
             return True
         else:
             return False
@@ -193,6 +195,9 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
         lines_to_add = depth+spaces_above - global_min_y
         #print(lines_to_add)
         if lines_to_add > 0:
+            #instead of adding lines insertion index should be updated.
+            # alternatively, all y indices in the perimiter could be updated
+            # but it is more costly
             chamber = np.concatenate((np.full((lines_to_add,7), False), chamber), axis=0)
             global_min_y = global_min_y + lines_to_add
         elif lines_to_add < 0:
@@ -241,7 +246,7 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
             #print("wha")
             piece_coords, is_settled = downwards_movement(chamber, piece_coords)
             #print("d", piece_coords, is_settled)
-            if is_settled:
+            if is_settled: # update perimeter, min_y could be updated?
                 return piece_coords, time
                 
         time += 1
@@ -266,7 +271,7 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
 
     #print(global_min_y)
     chamber[settled_piece] = True
-    return chamber, time
+    return chamber, time 
 
 
 #drop_new_piece(drop_new_piece(base_state, direction_list, i_tetris))
