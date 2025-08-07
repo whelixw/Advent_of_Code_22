@@ -1,5 +1,13 @@
 #there is only one way a pice stops, by being unable to drop further
-# todo:
+# todo:make a way to outline a perimeter. 
+# The cells that make up the perimiter are the only ones needed to be checked for collision and updated
+# we need a way to determine if a cell is "live" or not.
+# any cell that is fully contained is not live.
+# we just need to draw a line along the perimeter of the pieces.
+# ideally, we want a smart way to update the perimiter.
+# a naive implementation would start at the highest leftmode cell and check up,
+#  then up/right, then right, then down/right ... until the perimeter has been established
+
 import numpy as np 
 
 file = "17/test.txt"
@@ -40,11 +48,21 @@ x_instert_level = 3
 base_state = np.full((1,7), True)
 
 #base_state = np.concatenate((np.full((1,7), False),base_state), axis=0)
-global_min_y = 0
+
 min_y_list = [0, 0, 0, 0, 0, 0, 0]
+min_y_across_xs = 0
+lines_deleted = 0
 
+def update_min_y_after_piece():
+    pass
 
-
+def adjust_min_y_for_line_insertion(difference):
+    global min_y_list
+    global min_y_across_xs
+    for i in range(len(min_y_list)):
+        if min_y_list[i] != -1:
+            min_y_list[i] += difference
+    min_y_across_xs += difference
 
 def isValid(np_shape: tuple, index: tuple):
     if min(index) < 0:
@@ -55,7 +73,7 @@ def isValid(np_shape: tuple, index: tuple):
     return True
 
 def drop_new_piece(chamber, movement_list, tetris_shape, time):
-    global global_min_y
+    global min_y_across_xs
     
     def check_colliding_direction(chamber, tuple_of_coords, direction): 
         #returns True if piece would move out of bounds
@@ -65,7 +83,7 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
         #print(plane, offset)
         #print("a")
         if plane == "lateral":
-            #print(tuple_of_coords)
+            print(tuple_of_coords)
             #print("AAA")
             #print(offset)
             positions_to_check = (tuple_of_coords[0]+offset, tuple_of_coords[1])
@@ -86,18 +104,18 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
         
 
     def insert_piece(tetris_shape, chamber): #incorrect number of lines when block piece is inserted
-        global global_min_y 
+        global min_y_across_xs 
         #adds lines to the chamber corresponding to the depth of the selected shape, then gives the coords of the shape
         tuple_of_coords = tetris_shape.tuple_of_coordinates
         depth = tetris_shape.depth
         #chamber_height = chamber.shape[0]
         spaces_above = 3
 
-        lines_to_add = depth+spaces_above - global_min_y
+        lines_to_add = depth+spaces_above - min_y_across_xs
         #print(lines_to_add)
         if lines_to_add > 0:
             chamber = np.concatenate((np.full((lines_to_add,7), False), chamber), axis=0)
-            global_min_y = global_min_y + lines_to_add
+            adjust_min_y_for_line_insertion(lines_to_add)
         elif lines_to_add < 0:
             #print("before", tuple_of_coords)
             tuple_of_coords = (tuple_of_coords[0]-lines_to_add, tuple_of_coords[1]) 
@@ -153,9 +171,36 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
         #print(piece_coords)
         return piece_coords, time
     
-    def reduce_chamber(chamber, piece):
+    def reduce_chamber(chamber, piece): #todo: we need a way to update the min ys after deleting
         global min_y_list
-        pass
+        global min_y_across_xs
+        global lines_deleted
+
+        tuple_of_pairs = zip(piece[0], piece[1])
+        for pair in tuple_of_pairs:
+            #print(pair)
+            if min_y_list[pair[1]] < pair[0]:
+                print("min_index", pair[1], min_y_list)
+                min_y_list[pair[1]] = pair[0]
+        min_y_across_xs = min(min_y_list)
+        if min_y_across_xs > -1:
+            delete_cutoff = max(min_y_list)
+            lines_to_delete = chamber.shape[0]-delete_cutoff
+            if lines_to_delete > 0:
+                print("deleting lines:", lines_to_delete, delete_cutoff)
+                print(chamber.shape)
+                print(min_y_list)
+                chamber = chamber[:delete_cutoff,:]
+                lines_deleted += lines_to_delete
+                for i in range(len(min_y_list)):
+                    if min_y_list[i] == delete_cutoff:
+                        min_y_list[i] = -1
+                print("after:", chamber.shape, lines_deleted)
+        return chamber
+
+
+        
+            
 
 
 
@@ -165,10 +210,11 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
     settled_piece, time = advance_time(chamber, time, piece_coords)
     #print(chamber)
     #print(settled_piece)
-    global_min_y = min(global_min_y, np.min(settled_piece[0]))
-
-    #print(global_min_y)
+    #min_y_across_xs = min(min_y_across_xs, np.min(settled_piece[0]))
     chamber[settled_piece] = True
+    chamber = reduce_chamber(chamber, piece_coords)
+    #print(min_y_across_xs)
+    
     return chamber, time
 
 
@@ -181,11 +227,12 @@ chamber = base_state
 
 time = -1
 
-while i < 2021:
+while i < 10000000:
     i += 1
     chamber, time = drop_new_piece(chamber, direction_list, tetris_order[i%5], time)
 
-print(chamber.shape[0]-global_min_y-1) #bottom is not rock
+print(chamber.shape[0]-min_y_across_xs-1) #bottom is not rock
+#lines_deleted
 
 #print(chamber.shape)
 
@@ -195,8 +242,6 @@ print(chamber.shape[0]-global_min_y-1) #bottom is not rock
 #drop_new_piece(base_state, direction_list, j_tetris)
 #drop_new_piece(base_state, direction_list, block_tetris)
 
-test = np.array([[False, False, True],[False, True, False],[True,True,True]])
+'''test = np.array([[False, False, True],[False, True, False],[True,True,True]])
 np.where(test == True)
-
-
-#test
+i_tetris.tuple_of_coordinates'''

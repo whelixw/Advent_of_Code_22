@@ -67,8 +67,9 @@ def trace_perimeter(last_perimiter, placed_coords):
         x,y = node
         print(node, list(coordinate_pairs))
         for pair in coordinate_pairs:
-            xdiff = np.abs((x-pair[0]))
-            ydiff = np.abs((y-pair[1]))
+            ydiff = np.abs((y-pair[0]))
+            xdiff = np.abs((x-pair[1]))
+
             if xdiff <= 1 and ydiff <= 1:
                 #print("safe")
                 return True
@@ -151,11 +152,11 @@ trace_perimeter(last_perimeter, (np.array([0]), np.array([0])))
 pass
 
 
-def drop_new_piece(chamber, movement_list, tetris_shape, time):
+def drop_new_piece(perimeter, movement_list, tetris_shape, time):
     #should take perimeter, and return new perimeter
     global global_min_y
     
-    def check_colliding_direction(perimeter, shape, tuple_of_coords, direction):
+    def check_colliding_direction(perimeter, tuple_of_coords, direction):
         # should work 
         #ex. tuple of coords  = (np.array([236, 236, 236, 236]), np.array([2, 3, 4, 5]))
         #returns True if piece would move out of bounds
@@ -177,7 +178,9 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
         #print(coordinate_pairs)
         for coordinates in coordinate_pairs:
             #print(coordinates)
-            if not isValid(shape, coordinates): #there will be no chamber matrix
+            '''if not isValid(shape, coordinates): #there will be no chamber matrix
+                return True'''
+            if not 0 > coordinates[1] > 8:
                 return True
             if (int(coordinates[0]), int(coordinates[1])) in set(perimeter):
                 #there is probably a more efficient way, maybe just store as in64?
@@ -186,7 +189,7 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
     
     
 
-    def insert_piece(tetris_shape, chamber): #incorrect number of lines when block piece is inserted
+    def insert_piece(tetris_shape): #incorrect number of lines when block piece is inserted
         #wip
         global global_min_y 
         #adds lines to the chamber corresponding to the depth of the selected shape, then gives the coords of the shape
@@ -197,23 +200,25 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
 
         lines_to_add = depth+spaces_above - global_min_y
         #print(lines_to_add)
-        ''''if lines_to_add > 0:
+        if lines_to_add > 0:
             #instead of adding lines insertion index should be updated.
             # alternatively, all y indices in the perimiter could be updated
             # but it is more costly
             #chamber = np.concatenate((np.full((lines_to_add,7), False), chamber), axis=0)
-            #global_min_y = global_min_y + lines_to_add
-            pass
-        elif lines_to_add < 0:
-            #print("before", tuple_of_coords)''''
+            global_min_y = global_min_y + lines_to_add
+        
+
+        #elif lines_to_add < 0:
+            #print("before", tuple_of_coords)
+        
         tuple_of_coords = (tuple_of_coords[0]-lines_to_add, tuple_of_coords[1]) 
         #print("after", tuple_of_coords)
         #if there are to many lines, we move the piece down instead
 
-        
-        return chamber, tuple_of_coords
 
-    def lateral_movement(chamber, movement_list, tuple_of_coords, time):
+        return tuple_of_coords
+
+    def lateral_movement(perimeter, movement_list, tuple_of_coords, time):
         #updates the piece coords for lateral movement
         plane = "horizontal"
         
@@ -221,40 +226,40 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
         #(time, int(position/2))
         offset = movement_list[int(position/2)] #every other timestep is downwards
         direction = (plane, offset)
-        is_colliding = check_colliding_direction(chamber, tuple_of_coords, direction)
+        is_colliding = check_colliding_direction(perimeter, tuple_of_coords, direction)
         if not is_colliding:
             tuple_of_coords = (tuple_of_coords[0], tuple_of_coords[1]+offset)
         return tuple_of_coords
 
         
 
-    def downwards_movement(chamber, tuple_of_coords):
+    def downwards_movement(perimeter, tuple_of_coords):
         #print(chamber, tuple_of_coords)
         #checks if piece is settled, if not it updates the piece coords for horizontal movement
         plane = "lateral"
         offset = 1
         direction = (plane, offset)
-        is_colliding = check_colliding_direction(chamber, tuple_of_coords, direction)
+        is_colliding = check_colliding_direction(perimeter, tuple_of_coords, direction)
         pass
         if not is_colliding:
             tuple_of_coords = (tuple_of_coords[0]+offset, tuple_of_coords[1])
         return tuple_of_coords, is_colliding
 
 
-    def advance_time(chamber, time, piece_coords):
+    def advance_time(perimeter, time, piece_coords):
         #print("adv", chamber, time, piece_coords)
         if time % 2 == 0:
             #print("lat")
-            piece_coords = lateral_movement(chamber, movement_list, piece_coords, time)
+            piece_coords = lateral_movement(perimeter, movement_list, piece_coords, time)
         else:
             #print("wha")
-            piece_coords, is_settled = downwards_movement(chamber, piece_coords)
+            piece_coords, is_settled = downwards_movement(perimeter, piece_coords)
             #print("d", piece_coords, is_settled)
             if is_settled: # update perimeter, min_y could be updated?
                 return piece_coords, time
                 
         time += 1
-        piece_coords, time = advance_time(chamber, time, piece_coords)
+        piece_coords, time = advance_time(perimeter, time, piece_coords)
 
         #print(piece_coords)
         return piece_coords, time
@@ -265,22 +270,25 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
 
 
 
-    chamber, piece_coords = insert_piece(tetris_shape, chamber)
+    piece_coords = insert_piece(tetris_shape)
     #collision_tuple = check_colliding_direction(chamber, piece_coords, time)
     time += 1
-    settled_piece, time = advance_time(chamber, time, piece_coords)
+    settled_piece, time = advance_time(perimeter, time, piece_coords)
     #print(chamber)
     #print(settled_piece)
     global_min_y = min(global_min_y, np.min(settled_piece[0]))
 
     #print(global_min_y)
-    chamber[settled_piece] = True
-    return chamber, time 
+    #chamber[settled_piece] = True
+    perimeter = trace_perimeter(perimeter, settled_piece)
+    return perimeter, time 
 
 
 #drop_new_piece(drop_new_piece(base_state, direction_list, i_tetris))
 
 tetris_order = [line_tetris, plus_tetris, j_tetris, i_tetris, block_tetris]
+
+perimeter = [(0,i) for i in range(7)]
 
 i = -1
 chamber = base_state
@@ -289,7 +297,7 @@ time = -1
 
 while i < 2021:
     i += 1
-    chamber, time = drop_new_piece(chamber, direction_list, tetris_order[i%5], time)
+    chamber, time = drop_new_piece(perimeter, direction_list, tetris_order[i%5], time)
 
 print(shape[0]-global_min_y-1) #bottom is not rock
 
