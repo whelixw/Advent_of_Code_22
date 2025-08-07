@@ -155,7 +155,9 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
     #should take perimeter, and return new perimeter
     global global_min_y
     
-    def check_colliding_direction(chamber, tuple_of_coords, direction): 
+    def check_colliding_direction(perimeter, shape, tuple_of_coords, direction):
+        # should work 
+        #ex. tuple of coords  = (np.array([236, 236, 236, 236]), np.array([2, 3, 4, 5]))
         #returns True if piece would move out of bounds
         # or collision is imminent in the provided direction
         #print(chamber, tuple_of_coords, direction)
@@ -175,36 +177,38 @@ def drop_new_piece(chamber, movement_list, tetris_shape, time):
         #print(coordinate_pairs)
         for coordinates in coordinate_pairs:
             #print(coordinates)
-            if not isValid(chamber.shape, coordinates): #there will be no chamber matrix
+            if not isValid(shape, coordinates): #there will be no chamber matrix
                 return True
-        if np.any(chamber[positions_to_check] == True): #this check should be changed.
-            #check if it is contained in the perimeter set instead  
-            return True
-        else:
+            if (int(coordinates[0]), int(coordinates[1])) in set(perimeter):
+                #there is probably a more efficient way, maybe just store as in64?
+                return True
             return False
-        
+    
+    
 
     def insert_piece(tetris_shape, chamber): #incorrect number of lines when block piece is inserted
+        #wip
         global global_min_y 
         #adds lines to the chamber corresponding to the depth of the selected shape, then gives the coords of the shape
         tuple_of_coords = tetris_shape.tuple_of_coordinates
         depth = tetris_shape.depth
-        #chamber_height = chamber.shape[0]
+        #chamber_height = shape[0]
         spaces_above = 3
 
         lines_to_add = depth+spaces_above - global_min_y
         #print(lines_to_add)
-        if lines_to_add > 0:
+        ''''if lines_to_add > 0:
             #instead of adding lines insertion index should be updated.
             # alternatively, all y indices in the perimiter could be updated
             # but it is more costly
-            chamber = np.concatenate((np.full((lines_to_add,7), False), chamber), axis=0)
-            global_min_y = global_min_y + lines_to_add
+            #chamber = np.concatenate((np.full((lines_to_add,7), False), chamber), axis=0)
+            #global_min_y = global_min_y + lines_to_add
+            pass
         elif lines_to_add < 0:
-            #print("before", tuple_of_coords)
-            tuple_of_coords = (tuple_of_coords[0]-lines_to_add, tuple_of_coords[1]) 
-            #print("after", tuple_of_coords)
-            #if there are to many lines, we move the piece down instead
+            #print("before", tuple_of_coords)''''
+        tuple_of_coords = (tuple_of_coords[0]-lines_to_add, tuple_of_coords[1]) 
+        #print("after", tuple_of_coords)
+        #if there are to many lines, we move the piece down instead
 
         
         return chamber, tuple_of_coords
@@ -287,11 +291,11 @@ while i < 2021:
     i += 1
     chamber, time = drop_new_piece(chamber, direction_list, tetris_order[i%5], time)
 
-print(chamber.shape[0]-global_min_y-1) #bottom is not rock
+print(shape[0]-global_min_y-1) #bottom is not rock
 
-#print(chamber.shape)
+#print(shape)
 
-#print(chamber.shape)
+#print(shape)
 
 
 #drop_new_piece(base_state, direction_list, j_tetris)
