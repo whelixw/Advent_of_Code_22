@@ -28,7 +28,7 @@ class Shape:
 
 line_tetris = Shape(np.where(np.array([True,True,True,True], ndmin=2) == True))
 plus_tetris = Shape(np.where(np.array([[False, True, False],
-                 [True, True, True],
+                 [True, False, True],
                  [False, True, False]]) == True ))
 j_tetris =  Shape(np.where(np.array([[False, False, True],
                      [False, False, True],
@@ -77,8 +77,10 @@ def trace_perimeter(last_perimiter, placed_coords):
 
             '''if (x-1 <= pair[0] >= x+1 and
             y-1 <= pair[1] >= y+1):'''
-    def path_search(pos, dir_priority, search_positions, path):
-        #path search does not behave as expected.
+    def path_search(pos, set_of_edges, dir_priority, search_positions, path):
+        #path search can loop endlessly. We need a way to not explore cyclically.
+        # each edge should be modelled as two directed edges
+        # it should be allowed to visit the same node multiple times, but needs to take a different directed edge.
         #terminates when last position that can reach piece is selected
         for direction in dir_priority: #goes through the direction in order
             modified_pos = list(pos)
@@ -88,14 +90,17 @@ def trace_perimeter(last_perimiter, placed_coords):
                 modified_pos[pair_index] += direction[pair_index] 
                 #moves cursor from selected pos in direction
                 print(modified_pos)
-            if tuple(modified_pos) in search_positions:
+            if (tuple(modified_pos) in search_positions and tuple(pos, modified_pos) not in set_of_edges):
                 #if piece is contained in that position, add to path and select position
+                set_of_edges.add(tuple(pos, modified_pos))
                 path.append(tuple(modified_pos))
                 print("appending")
                 print(path)
-                return(modified_pos, path)
+                print(set_of_edges)
+                return(modified_pos, path, set_of_edges)
     
     def build_path(dir_priority, last_perimiter, coordinate_pairs, start_index, end_index ):
+        set_of_edges = set()
         #selects the first position that can reach the new piece
         #needs to check for not only placed piece but also end cell
         #potentially even more
@@ -110,7 +115,7 @@ def trace_perimeter(last_perimiter, placed_coords):
         while tuple(selected_pos) != end_cell: 
             #should i use while?
             print("outer")
-            selected_pos, path = path_search(selected_pos, dir_priority, search_positions, path)
+            selected_pos, path, set_of_edges = path_search(selected_pos, set_of_edges, dir_priority, search_positions, path)
 
             '''#terminates when last position that can reach piece is selected
             for direction in dir_priority: #goes through the direction in order
@@ -134,8 +139,10 @@ def trace_perimeter(last_perimiter, placed_coords):
 
         
     
-    dir_priority = ((-1,0),(-1,1),(0,1),(1,1),(1,0),(1,-1),(0,-1),(-1,-1))
-    #up, up/right, right, down/right, down, down/left, left, up/left
+    '''dir_priority = ((-1,0),(-1,1),(0,1),(1,1),(1,0),(1,-1),(0,-1),(-1,-1))
+    #up, up/right, right, down/right, down, down/left, left, up/left'''
+    dir_priority = ((-1,-1),(-1,0),(-1,1),(0,1),(1,1),(1,0),(1,-1),(0,-1))
+    # up/left, up, up/right, right, down/right, down, down/left, left
     # down is (+1,0)
     int_coords = ((int(c) for c in placed_coords[0]), (int(c) for c in placed_coords[1] ))
     coordinate_pairs = tuple(zip(int_coords[0],int_coords[1]))
