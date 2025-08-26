@@ -65,13 +65,13 @@ def trace_perimeter(last_perimiter, placed_coords):
     def check_node(node, coordinate_pairs):
         #checks if node can path to new piece
         x,y = node
-        print(node, list(coordinate_pairs))
+        #print(node, list(coordinate_pairs))
         for pair in coordinate_pairs:
             ydiff = np.abs((x-pair[0]))
             xdiff = np.abs((y-pair[1]))
 
             if xdiff <= 1 and ydiff <= 1:
-                print("safe")
+                #print("safe")
                 return True
 
 
@@ -88,9 +88,9 @@ def trace_perimeter(last_perimiter, placed_coords):
         index = dir_priority.index(last_move)
         rotated_priority = dir_priority[index + 1 :] + dir_priority[:index+1]
         #should probably be list
-        print("new search")
+        #print("new search")
         for direction in rotated_priority: #goes through the direction in order
-            print(direction)
+            #print(direction)
 
             #print(direction, rotated_priority, dir_priority)
             modified_pos = list(pos)
@@ -101,14 +101,14 @@ def trace_perimeter(last_perimiter, placed_coords):
                 modified_pos[pair_index] += direction[pair_index] 
                 #moves cursor from selected pos in direction
                 #print(modified_pos)
-            print("modifying",tuple([pos, tuple(modified_pos)]))
+            #print("modifying",tuple([pos, tuple(modified_pos)]))
             if (tuple(modified_pos) in search_positions and tuple([tuple(pos), tuple(modified_pos)]) not in set_of_edges):
                 #if piece is contained in that position, add to path and select position
                 set_of_edges.add(tuple([tuple(pos), tuple(modified_pos)]))
                 path.append(tuple(modified_pos))
-                print("appending")
-                print(path)
-                print(modified_pos, path, set_of_edges, direction)
+                #print("appending")
+                #print(path)
+                #print(modified_pos, path, set_of_edges, direction)
                 return(modified_pos, path, set_of_edges, tuple([-direction[0], -direction[1]]))
         print("no path found\n", pos, set_of_edges, dir_priority, search_positions, path,  last_move)
     
@@ -119,18 +119,26 @@ def trace_perimeter(last_perimiter, placed_coords):
         #needs to check for not only placed piece but also end cell
         #potentially even more
         # the while works for the smallest test case now
-        print(dir_priority, last_perimiter, coordinate_pairs, start_index, end_index)
+        #print(dir_priority, last_perimiter, coordinate_pairs, start_index, end_index)
         end_cell = last_perimiter[end_index]
         path = []
         search_positions = set(coordinate_pairs).union(set(tuple([end_cell])))
         last_move = (0,-1)
         # too many paths are added
         selected_pos = last_perimiter[start_index]
-        print(selected_pos, end_cell)
+        #print(selected_pos, end_cell)
+        
+        if start_index == end_index:
+            #print("reachable from a single point")
+            selected_pos, path, set_of_edges, last_move = path_search(selected_pos, set_of_edges, dir_priority, search_positions, path, last_move)
         while tuple(selected_pos) != end_cell: 
+            #TODO: path search does not always succeed. If only one point can reach the new piece, nothing happens.
+            """[(0, 0), (0, 1), (-1, 2), (-2, 3), (-3, 2), (-4, 1), (-4, 0), (-4, 1), (-5, 2), (-6, 2), (-5, 2), (-4, 3), (-3, 4), (-2, 3), (-1, 4), (-1, 5), (0, 6)]
+            collision (array([-7, -7, -7, -7]), array([0, 1, 2, 3]))"""
             #should i use while?
-            print("outer")
-            print("last_move", last_move)
+            #print("outer")
+            #print("last_move", last_move)
+            #print("path search")
             selected_pos, path, set_of_edges, last_move = path_search(selected_pos, set_of_edges, dir_priority, search_positions, path, last_move)
 
             '''#terminates when last position that can reach piece is selected
@@ -148,7 +156,7 @@ def trace_perimeter(last_perimiter, placed_coords):
                     print("appending")
                     selected_pos = new_pos'''
                     #
-        print(last_perimiter[:start_index+1]+path+last_perimiter[end_index+1:])
+        #print(last_perimiter[:start_index+1]+path+last_perimiter[end_index+1:])
         return last_perimiter[:start_index+1]+path+last_perimiter[end_index+1:]
     
 
@@ -166,7 +174,7 @@ def trace_perimeter(last_perimiter, placed_coords):
     coordinate_pairs = tuple(zip(int_coords[0],int_coords[1]))
     
     for index in range(len(last_perimiter)):
-        print("check_node", last_perimiter, index, coordinate_pairs)
+        #print("check_node", last_perimiter, index, coordinate_pairs)
         if check_node(last_perimiter[index], coordinate_pairs):
             #check node is misbehaving
             if start_index is False:
@@ -174,11 +182,11 @@ def trace_perimeter(last_perimiter, placed_coords):
                 end_index = index
             elif index > end_index and index < 7:
                 end_index = index
-    print("indices:", start_index, end_index)
+    #print("indices:", start_index, end_index)
     new_perimeter = build_path(dir_priority, last_perimiter, 
                coordinate_pairs, start_index, end_index)
     
-    print("new", new_perimeter)
+    #print("new", new_perimeter)
     return new_perimeter
     
 '''last_perimeter = [(1,0),(1,1)]
@@ -198,8 +206,8 @@ def drop_new_piece(perimeter, movement_list, tetris_shape, time):
         #print(chamber, tuple_of_coords, direction)
         plane, offset = direction
         #print(plane, offset)
-        print("a")
-        print(perimeter, tuple_of_coords, direction)
+        #print("a")
+        #print(perimeter, tuple_of_coords, direction)
         if plane == "lateral":
             #print(tuple_of_coords)
             #print("AAA")
@@ -217,10 +225,10 @@ def drop_new_piece(perimeter, movement_list, tetris_shape, time):
             '''if not isValid(shape, coordinates): #there will be no chamber matrix
                 return True'''
             if not -1 < coordinates[1] < 7:
-                print(coordinates[1],"????")
+                #print(coordinates[1],"????")
                 return True
             if (int(coordinates[0]), int(coordinates[1])) in set(perimeter):
-                print((int(coordinates[0]), int(coordinates[1])), "aaaa")
+                #print((int(coordinates[0]), int(coordinates[1])), "aaaa")
                 #there is probably a more efficient way, maybe just store as in64?
                 return True
         return False
@@ -282,7 +290,8 @@ def drop_new_piece(perimeter, movement_list, tetris_shape, time):
         if not is_colliding:
             tuple_of_coords = (tuple_of_coords[0]+offset, tuple_of_coords[1])
         else:
-            print("collision", tuple_of_coords)
+            pass
+            #print("collision", tuple_of_coords)
         return tuple_of_coords, is_colliding
 
 
@@ -294,8 +303,9 @@ def drop_new_piece(perimeter, movement_list, tetris_shape, time):
         else:
             #print("wha")
             piece_coords, is_settled = downwards_movement(perimeter, piece_coords)
-            #print("d", piece_coords, is_settled)
+            
             if is_settled: # update perimeter, min_y could be updated?
+                #print("d", piece_coords, is_settled)
                 return piece_coords, time
                 
         time += 1
@@ -337,6 +347,7 @@ time = -1
 
 while i < 2021:
     i += 1
+    print(i)
     perimeter, time = drop_new_piece(perimeter, direction_list, tetris_order[i%5], time)
 
 print(shape[0]-global_min_y-1) #bottom is not rock
@@ -351,3 +362,4 @@ print(shape[0]-global_min_y-1) #bottom is not rock
 
 test = np.array([[False, False, True],[False, True, False],[True,True,True]])
 np.where(test == True)
+perimeter
