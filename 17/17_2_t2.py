@@ -77,30 +77,44 @@ def trace_perimeter(last_perimiter, placed_coords):
 
             '''if (x-1 <= pair[0] >= x+1 and
             y-1 <= pair[1] >= y+1):'''
-    def path_search(pos, set_of_edges, dir_priority, search_positions, path):
+    def path_search(pos, set_of_edges, dir_priority, search_positions, path,  last_move):
         #path search can loop endlessly. We need a way to not explore cyclically.
         # each edge should be modelled as two directed edges
         # it should be allowed to visit the same node multiple times, but needs to take a different directed edge.
+        # adittionally, cells in shape should be prioritized until shape is finished,
+        # then deprioritized after.
+        # ALTERNATIVELY: try to turn in clockwise order. Left of the last direction should always be prioritized
         #terminates when last position that can reach piece is selected
-        for direction in dir_priority: #goes through the direction in order
+        index = dir_priority.index(last_move)
+        rotated_priority = dir_priority[index + 1 :] + dir_priority[:index+1]
+        #should probably be list
+        print("new search")
+        for direction in rotated_priority: #goes through the direction in order
+            print(direction)
+
+            #print(direction, rotated_priority, dir_priority)
             modified_pos = list(pos)
             #print(new_pos)
+
             for pair_index in range(len(direction)):
-                print("modifying", modified_pos, direction[pair_index])
+                
                 modified_pos[pair_index] += direction[pair_index] 
                 #moves cursor from selected pos in direction
-                print(modified_pos)
-            if (tuple(modified_pos) in search_positions and tuple(pos, modified_pos) not in set_of_edges):
+                #print(modified_pos)
+            print("modifying",tuple([pos, tuple(modified_pos)]))
+            if (tuple(modified_pos) in search_positions and tuple([tuple(pos), tuple(modified_pos)]) not in set_of_edges):
                 #if piece is contained in that position, add to path and select position
-                set_of_edges.add(tuple(pos, modified_pos))
+                set_of_edges.add(tuple([tuple(pos), tuple(modified_pos)]))
                 path.append(tuple(modified_pos))
                 print("appending")
                 print(path)
-                print(set_of_edges)
-                return(modified_pos, path, set_of_edges)
+                print(modified_pos, path, set_of_edges, direction)
+                return(modified_pos, path, set_of_edges, tuple([-direction[0], -direction[1]]))
+        print("no path found\n", pos, set_of_edges, dir_priority, search_positions, path,  last_move)
     
-    def build_path(dir_priority, last_perimiter, coordinate_pairs, start_index, end_index ):
+    def build_path(dir_priority, last_perimiter, coordinate_pairs, start_index, end_index):
         set_of_edges = set()
+        #END CELL IS WRONG
         #selects the first position that can reach the new piece
         #needs to check for not only placed piece but also end cell
         #potentially even more
@@ -109,13 +123,15 @@ def trace_perimeter(last_perimiter, placed_coords):
         end_cell = last_perimiter[end_index]
         path = []
         search_positions = set(coordinate_pairs).union(set(tuple([end_cell])))
+        last_move = (0,-1)
         # too many paths are added
         selected_pos = last_perimiter[start_index]
         print(selected_pos, end_cell)
         while tuple(selected_pos) != end_cell: 
             #should i use while?
             print("outer")
-            selected_pos, path, set_of_edges = path_search(selected_pos, set_of_edges, dir_priority, search_positions, path)
+            print("last_move", last_move)
+            selected_pos, path, set_of_edges, last_move = path_search(selected_pos, set_of_edges, dir_priority, search_positions, path, last_move)
 
             '''#terminates when last position that can reach piece is selected
             for direction in dir_priority: #goes through the direction in order
@@ -125,7 +141,7 @@ def trace_perimeter(last_perimiter, placed_coords):
                     print("modifying", new_pos, direction[pair_index])
                     new_pos[pair_index] += direction[pair_index] 
                     #moves cursor from selected pos in direction
-                    print(new_pos)
+                     print(new_pos)
                 if tuple(new_pos) in search_positions:
                     #if piece is contained in that position, add to path and select position
                     path.append(new_pos)
@@ -143,17 +159,22 @@ def trace_perimeter(last_perimiter, placed_coords):
     #up, up/right, right, down/right, down, down/left, left, up/left'''
     dir_priority = ((-1,-1),(-1,0),(-1,1),(0,1),(1,1),(1,0),(1,-1),(0,-1))
     # up/left, up, up/right, right, down/right, down, down/left, left
-    # down is (+1,0)
+    #right to up is (0,1) to (-1,0), up to left is (-1,0) to (0,-1)
+    #left to down is (0,-1) to (+1,0), down to right is (+1, 0) to (0,1)
+    #  
     int_coords = ((int(c) for c in placed_coords[0]), (int(c) for c in placed_coords[1] ))
     coordinate_pairs = tuple(zip(int_coords[0],int_coords[1]))
     
     for index in range(len(last_perimiter)):
+        print("check_node", last_perimiter, index, coordinate_pairs)
         if check_node(last_perimiter[index], coordinate_pairs):
             #check node is misbehaving
             if start_index is False:
                 start_index = index
-            if index > end_index and index < 7:
                 end_index = index
+            elif index > end_index and index < 7:
+                end_index = index
+    print("indices:", start_index, end_index)
     new_perimeter = build_path(dir_priority, last_perimiter, 
                coordinate_pairs, start_index, end_index)
     
@@ -168,7 +189,7 @@ pass
 def drop_new_piece(perimeter, movement_list, tetris_shape, time):
     #should take perimeter, and return new perimeter
     global global_min_y
-    
+     
     def check_colliding_direction(perimeter, tuple_of_coords, direction):
         # should work 
         #ex. tuple of coords  = (np.array([236, 236, 236, 236]), np.array([2, 3, 4, 5]))
