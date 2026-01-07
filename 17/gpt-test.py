@@ -50,7 +50,7 @@ def find_path_west_to_east(matrix):
                     visited_neighbors.append((nr, nc))
 
         # Return unvisited first, then visited if no unvisited available
-        return unvisited if unvisited else visited_neighbors
+        return unvisited
 
 
     def dfs(r, c, visited, path):
@@ -67,7 +67,9 @@ def find_path_west_to_east(matrix):
         for nr, nc in neighbors:
             # Avoid immediate backtracking
             if len(current_path) >= 2 and (nr, nc) == current_path[-2]:
-                continue
+                print(nr,nc)
+                if not len(neighbors) == 1:
+                    continue
 
             result = dfs(nr, nc, visited.copy(), current_path)
             if result:
@@ -119,6 +121,24 @@ test_b = np.array([[ True,  False,  True,  True,  True,  True,  True],
        [ True,  True,  True,  True,  True,  True,  True]]) # should yield an offset of 4
 
 path = find_path_west_to_east(test_b)
+if path:
+    print("Path found:")
+    for i, (r, c) in enumerate(path):
+        print(f"Step {i + 1}: ({r}, {c})")
+else:
+    print("No path found")
+
+
+test_d = np.array([[ True,  False,  True,  False,  True,  True,  True],
+       [ True,  True,  True,  False,  True,  True,  True],
+       [ True,  True,  True,  False,  True,  True,  True],
+       [ True,  False,  False,  False,  False,  True,  True],
+       [ True,  True,  False,  True,  False,  True,  True],
+       [ True,  True,  False,  True,  False,  False,  True],
+       [ True,  True,  False,  True,  True,  True,  True],
+       [ True,  True,  True,  True,  True,  True,  True]])
+
+path = find_path_west_to_east(test_d)
 if path:
     print("Path found:")
     for i, (r, c) in enumerate(path):
