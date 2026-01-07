@@ -1,3 +1,5 @@
+from symbol import return_stmt
+
 import numpy as np
 
 def find_path_west_to_east(matrix):
@@ -50,12 +52,17 @@ def find_path_west_to_east(matrix):
                     visited_neighbors.append((nr, nc))
 
         # Return unvisited first, then visited if no unvisited available
-        return unvisited
+        if unvisited:
+            return unvisited
+        elif len(visited_neighbors) == 1:
+                return visited_neighbors
+        else:
+            return []
 
 
-    def dfs(r, c, visited, path):
+    def dfs(r, c, visited, path, target_cell):
         # Check if we've reached the east edge
-        if c == cols - 1:
+        if (r,c) == target_cell:
             return path + [(r, c)]
 
         current_path = path + [(r, c)]
@@ -63,15 +70,17 @@ def find_path_west_to_east(matrix):
 
         # Get neighbors in preference order
         neighbors = get_neighbors(r, c, visited)
-
         for nr, nc in neighbors:
             # Avoid immediate backtracking
             if len(current_path) >= 2 and (nr, nc) == current_path[-2]:
                 print(nr,nc)
+                if (nr, nc) == (4,3):
+                    print(path, neighbors)
                 if not len(neighbors) == 1:
+                    print("backtracking to multiple options not allowed")
                     continue
 
-            result = dfs(nr, nc, visited.copy(), current_path)
+            result = dfs(nr, nc, visited.copy(), current_path, target_cell)
             if result:
                 return result
 
@@ -79,12 +88,21 @@ def find_path_west_to_east(matrix):
 
         # Try starting from each True cell on the west edge (leftmost column)
 
-
+    origin_cell, target_cell = None, None
     for r in range(rows):
+        print(r)
+        print(origin_cell, target_cell)
         if matrix[r, 0]:
-            path = dfs(r, 0, set(), [])
-            if path:
-                return path
+            origin_cell = (r, 0)
+        if matrix[r, 6]:
+            target_cell = (r, 6)
+        if origin_cell is not None and target_cell is not None:
+            print(origin_cell, target_cell)
+            break
+
+    path = dfs(origin_cell[0], origin_cell[1], set(), [], target_cell)
+    if path:
+        return path
 
     return None
 
