@@ -106,6 +106,13 @@ def find_path_west_to_east(matrix):
 
     return None
 
+def get_max_y(path):
+    max_y = -1
+    for coordset in path:
+        #print(coordset)
+        if coordset[0] > max_y:
+            max_y = coordset[0]
+    return max_y
 
 
 # Test with your example
@@ -157,9 +164,12 @@ test_d = np.array([[ True,  False,  True,  False,  True,  True,  True],
        [ True,  True,  True,  True,  True,  True,  True]])
 
 path = find_path_west_to_east(test_d)
+
 if path:
     print("Path found:")
     for i, (r, c) in enumerate(path):
         print(f"Step {i + 1}: ({r}, {c})")
 else:
     print("No path found")
+
+print(get_min_y(path))
