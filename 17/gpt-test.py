@@ -31,8 +31,10 @@ def find_path_west_to_east(matrix):
 
     ]
 
+
     def is_valid(r, c):
         return 0 <= r < rows and 0 <= c < cols and matrix[r, c]
+
 
     def get_neighbors(r, c, visited):
         """Get neighbors in order of preference, prioritizing unvisited ones"""
@@ -42,7 +44,7 @@ def find_path_west_to_east(matrix):
         for dr, dc in directions:
             nr, nc = r + dr, c + dc
             if is_valid(nr, nc):
-                if (nr, nc) not in visited and matrix[nr, nc]:
+                if (nr, nc) not in visited:
                     unvisited.append((nr, nc))
                 else:
                     visited_neighbors.append((nr, nc))
@@ -50,7 +52,8 @@ def find_path_west_to_east(matrix):
         # Return unvisited first, then visited if no unvisited available
         return unvisited if unvisited else visited_neighbors
 
-    def dfs(r, c, visited, twice_visited, path):
+
+    def dfs(r, c, visited, path):
         # Check if we've reached the east edge
         if c == cols - 1:
             return path + [(r, c)]
@@ -64,26 +67,22 @@ def find_path_west_to_east(matrix):
         for nr, nc in neighbors:
             # Avoid immediate backtracking
             if len(current_path) >= 2 and (nr, nc) == current_path[-2]:
-                if (nr, nc) not in twice_visited:
-                    c_twice_visited = twice_visited.copy()
-                    c_twice_visited.add((nr, nc))
-                    result = dfs(nr, nc, visited.copy(), c_twice_visited, current_path)
-                else:
-                    continue
+                continue
 
-            result = dfs(nr, nc, visited.copy(), twice_visited.copy(), current_path)
+            result = dfs(nr, nc, visited.copy(), current_path)
             if result:
                 return result
 
         return None
 
-    # Try starting from each True cell on the west edge (leftmost column)
+        # Try starting from each True cell on the west edge (leftmost column)
+
+
     for r in range(rows):
         if matrix[r, 0]:
-            path = dfs(r, 0, set(), set(), [])
+            path = dfs(r, 0, set(), [])
             if path:
-                max_y = max(y for y,_ in path)
-                return path, max_y
+                return path
 
     return None
 
