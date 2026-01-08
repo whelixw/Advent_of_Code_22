@@ -1,4 +1,3 @@
-from symbol import return_stmt
 
 import numpy as np
 
@@ -117,6 +116,21 @@ def get_max_y(path):
         if coordset[0] > max_y:
             max_y = coordset[0]
     return max_y
+
+
+def add_piece_to_path(piece_coords, path):
+    earliest_insertion = len(path)
+    latest_insertion = 0
+    for index in range(len(path)):
+        (r, c) = path[index]
+        for (rp, cp) in piece_coords:
+            if np.abs(rp - r) <= 1 and np.abs(cp - c) <= 1:
+                if index < earliest_insertion:
+                    earliest_insertion = index
+                if index > latest_insertion:
+                    latest_insertion = index
+    #do a bfs with these indices as origin and target
+    #return new_path
 
 
 # Test with your example
