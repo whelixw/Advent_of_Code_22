@@ -17,14 +17,15 @@ def find_path_west_to_east(matrix):
     # Direction vectors in order of preference
     # North, Northwest, West, Southwest, South, Southeast, East, Northeast
     directions = [
-        (-1, 0),  # North (highest preference)
+        (-1, -1),  # Northwest (highest preference)
+        (-1, 0),  # North
         (-1, 1),  # Northeast
         (0, 1),  # East
         (1, 1),  # Southeast
         (1, 0),  # South
         (1, -1),  # Southwest
-        (0, -1),  # West
-        (-1, -1)  # Northwest (lowest preference)
+        (0, -1)  # West (lowest preference)
+
 
 
 
@@ -38,7 +39,7 @@ def find_path_west_to_east(matrix):
         return 0 <= r < rows and 0 <= c < cols and matrix[r, c]
 
 
-    def get_neighbors(r, c, visited):
+    def get_neighbors(r, c, visited, backwards_visited, path):
         """Get neighbors in order of preference, prioritizing unvisited ones"""
         unvisited = []
         visited_neighbors = []
@@ -48,39 +49,42 @@ def find_path_west_to_east(matrix):
             if is_valid(nr, nc):
                 if (nr, nc) not in visited:
                     unvisited.append((nr, nc))
-                else:
+                elif (nr, nc) not in backwards_visited:
+                    #look throuh paht and append them in order
+
                     visited_neighbors.append((nr, nc))
 
         # Return unvisited first, then visited if no unvisited available
         if unvisited:
             return unvisited
-        elif len(visited_neighbors) == 1:
-                return visited_neighbors
         else:
-            return []
+            visited_order = []
+            for node in path:
+                if node in visited_neighbors:
+                    visited_order.append(node)
+            return visited_order
 
 
-    def dfs(r, c, visited, path, target_cell):
+    def dfs(r, c, visited, backwards_visited, path, target_cell):
         # Check if we've reached the east edge
         if (r,c) == target_cell:
+            print("target reached with backwards edges: ", backwards_visited)
             return path + [(r, c)]
 
         current_path = path + [(r, c)]
-        visited.add((r, c))
+        if (r, c) not in visited:
+            visited.add((r, c))
+        elif (r, c) not in backwards_visited:
+            print("backtracking from ", path[-1], "to ", (r,c))
+            backwards_visited.add((r, c))
+        else:
+            return None
 
         # Get neighbors in preference order
-        neighbors = get_neighbors(r, c, visited)
+        neighbors = get_neighbors(r, c, visited, backwards_visited, path)
         for nr, nc in neighbors:
-            # Avoid immediate backtracking
-            if len(current_path) >= 2 and (nr, nc) == current_path[-2]:
-                print(nr,nc)
-                if (nr, nc) == (4,3):
-                    print(path, neighbors)
-                if not len(neighbors) == 1:
-                    print("backtracking to multiple options not allowed")
-                    continue
 
-            result = dfs(nr, nc, visited.copy(), current_path, target_cell)
+            result = dfs(nr, nc, visited.copy(), backwards_visited.copy(), current_path, target_cell)
             if result:
                 return result
 
@@ -100,7 +104,7 @@ def find_path_west_to_east(matrix):
             print(origin_cell, target_cell)
             break
 
-    path = dfs(origin_cell[0], origin_cell[1], set(), [], target_cell)
+    path = dfs(origin_cell[0], origin_cell[1], set(), set(), [], target_cell)
     if path:
         return path
 
