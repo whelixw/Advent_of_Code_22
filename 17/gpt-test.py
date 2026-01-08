@@ -172,4 +172,21 @@ if path:
 else:
     print("No path found")
 
-print(get_min_y(path))
+
+test_e = np.array([[ False,  False,  False,  False,  False,  False,  False],
+       [ False,  False,  False,  False,  False,  False,  False],
+       [ False,  False,  False,  False,  False,  False,  False],
+       [ False,  False,  False,  False,  False,  False,  False],
+       [ False,  False,  False,  True,  False,  False,  False],
+       [ False,  False,  True,  True,  True,  False,  False],
+       [ False,  False,  False,  True,  False,  False,  False],
+       [ True,  True,  True,  True,  True,  True,  True]]) # should yield an offset of 4
+
+path = find_path_west_to_east(test_e)
+
+if path:
+    print("Path found:")
+    for i, (r, c) in enumerate(path):
+        print(f"Step {i + 1}: ({r}, {c})")
+else:
+    print("No path found")
