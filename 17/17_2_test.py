@@ -292,8 +292,11 @@ if path:
 else:
     print("No path found")
 
-test_f = np.array([[ False,  False,  False,  False,  False,  False,  False],
-       [ True,  True,  True,  True,  True,  True,  True]])
+test_f = np.array([
+    [ False,  False,  False,  False,  False,  False,  False],
+    [ True,  True,  True,  True,  True,  True,  True],
+    [ True,  True,  True,  True,  True,  True,  True],
+                   ])
 path = find_path_west_to_east(test_f)
 
 if path:
@@ -306,3 +309,20 @@ else:
 
 piece = [(0,1),(0,2)]
 result = add_piece_to_path(piece, path, test_f)
+
+def reduce_matrix(path, matrix, offset=0):
+    #print(path,matrix)
+    for item in path:
+        matrix[item] = True
+    nrows = matrix.shape[0]
+    #min_r = (min(x[0]) for x in path)
+    #print(path)
+    max_r = max((x[0]) for x in path)
+    #print(max_r, nrows)
+    offset = offset + ((nrows-1)-max_r)
+    reduced_matrix = matrix[:max_r+1]
+    return reduced_matrix, offset
+
+reduce_matrix(result, test_f)
+
+
