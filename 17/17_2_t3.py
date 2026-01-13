@@ -139,6 +139,8 @@ def drop_new_piece(chamber, path, movement_list, tetris_shape, time, offset):
             piece_coords, is_settled = downwards_movement(chamber, piece_coords)
             # print("d", piece_coords, is_settled)
             if is_settled:
+                print("no downwards movement from ", piece_coords)
+                print(chamber)
                 return piece_coords, time
 
         time += 1
@@ -233,6 +235,10 @@ def drop_new_piece(chamber, path, movement_list, tetris_shape, time, offset):
 
             #print(piece_coords)
             for (rp, cp) in piece_coords:
+                if cp == 0:
+                    earliest_insertion = 0
+                if cp == 7:
+                    latest_insertion = len(path)-1
                 if np.abs(rp - r) <= 1 and np.abs(cp - c) <= 1:
                     if index < earliest_insertion:
                         earliest_insertion = index
@@ -274,6 +280,9 @@ def drop_new_piece(chamber, path, movement_list, tetris_shape, time, offset):
     path = add_piece_to_path(settled_piece, path, chamber)
     chamber, offset = reduce_matrix(path, chamber, offset)
     path = [(r-offset, c) for (r,c) in path]
+    for i in range(len(settled_piece[0])):
+        settled_piece[0][i] = settled_piece[0][i] - offset
+
 
 
     return path, chamber, time, offset
