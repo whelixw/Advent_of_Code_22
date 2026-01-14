@@ -154,6 +154,8 @@ def drop_new_piece(chamber, path, movement_list, tetris_shape, time, offset):
         pass
 
     def add_piece_to_path(piece_coords, path, matrix):
+        #TODO: needs how to determine if piece can reach the walls or just reach first/last pos in path
+
         # Direction vectors in order of preference
         # North, Northwest, West, Southwest, South, Southeast, East, Northeast
         directions = [
@@ -201,10 +203,11 @@ def drop_new_piece(chamber, path, movement_list, tetris_shape, time, offset):
                 return visited_order
 
         def dfs(r, c, visited, backwards_visited, path, target_cell):
+            print("r", r, "c", c, "target_cell", target_cell)
             # Check if we've reached the east edge
             if (r, c) == target_cell:
                 print("target reached with backwards edges: ", backwards_visited)
-                return path + [(r, c)]
+                return path
 
             current_path = path + [(r, c)]
             if (r, c) not in visited:
@@ -225,9 +228,18 @@ def drop_new_piece(chamber, path, movement_list, tetris_shape, time, offset):
 
             return None
 
-        ## new
+        def first_coords(piece_coords, order):
+            print(piece_coords, order)
+            if order == "left":
+                indices = np.lexsort((-piece_coords[:,0],piece_coords[:,1]))
+            if order == "right":
+                indices = np.lexsort((piece_coords[:,0], piece_coords[:,1]))
+            sorted_coords = piece_coords[indices]
+            first_row = sorted_coords[0]
+            return (first_row[0],first_row[1])
 
         earliest_insertion = len(path)
+        print(path)
         latest_insertion = 0
         piece_coords = np.transpose(piece_coords)
         for index in range(len(path)):
@@ -236,10 +248,12 @@ def drop_new_piece(chamber, path, movement_list, tetris_shape, time, offset):
             #print(piece_coords)
             for (rp, cp) in piece_coords:
                 if cp == 0:
+                    print("leftrow")
                     earliest_insertion = 0
                 if cp == 7:
-                    latest_insertion = len(path)-1
-                if np.abs(rp - r) <= 1 and np.abs(cp - c) <= 1:
+                    print("rightrow")
+                    latest_insertion = len(path)
+                if np.abs(rp - r) <= 1 and np.abs(cp - c) <= 1 and (rp != r or cp != c):
                     if index < earliest_insertion:
                         earliest_insertion = index
                     if index > latest_insertion:
@@ -247,11 +261,22 @@ def drop_new_piece(chamber, path, movement_list, tetris_shape, time, offset):
         print("something odd with the path")
         print(earliest_insertion, latest_insertion, len(path))
         print(piece_coords, path)
-        origin_cell = path[earliest_insertion]
-        target_cell = path[latest_insertion]
+        if earliest_insertion > 0:
+            origin_cell = path[earliest_insertion]
+        else:
+            origin_cell = first_coords(piece_coords, "left")
+            #highest pchord in left col
+        if latest_insertion < len(path): #there is a difference of being able to reach last cell and being after last cell?
+            target_cell = path[latest_insertion]
+        else:
+            target_cell = first_coords(piece_coords, "right")
+            #highest pchord in right col
         subpath = dfs(origin_cell[0], origin_cell[1], set(), set(), [], target_cell)
-        print(earliest_insertion, latest_insertion)
-        return path[:earliest_insertion] + subpath + path[latest_insertion:]
+        #issue with subpath
+        print(earliest_insertion, latest_insertion, subpath)
+        print("prev. path: ", path)
+        print("resulting path : ", path[:earliest_insertion] + subpath + path[latest_insertion:])
+        return path[:earliest_insertion] + subpath + path[latest_insertion:] #this is clearly wrong
 
     def reduce_matrix(path, matrix, offset=0):
         # print(path,matrix)
