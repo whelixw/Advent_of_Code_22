@@ -43,7 +43,9 @@ steps:
 """
 
 
-#todo
+#todo: make initial filled row of 1x1 pieces, test larger pieces, implement heuristic search without loops
+# for making an initial filled row, we need to either explicitly give the adjecencies or make a function that can update it
+# we also need to make the inf high sides, somehow
 import numpy as np
 
 class Piece:
@@ -128,9 +130,29 @@ class PieceGrid():
             self.pieceset.remove(piece)
 
 
+def initiate_chamber_base(chamber):
+    initial_coords = [(1,0), (1,1), (1,2), (1,3), (1,4), (1,5), (1,6)]
+    for index, item in enumerate(initial_coords):
+        neighbours = []
+        print(index,item)
+        if index != 0:
+            neighbours.append(initial_coords[index-1])
+        if index != len(initial_coords)-1:
+            neighbours.append(initial_coords[index+1])
+        chamber.matrix[item] = Piece([(0,0)], set(neighbours))
+        chamber.matrix[item].x = item[0]
+        chamber.matrix[item].y = item[1]
+        chamber.pieceset.add(chamber.matrix[item])
+    return chamber
+
 chamber = PieceGrid(2,7)
+
+chamber = initiate_chamber_base(chamber)
 
 piece1 = Piece([(0,0)], set())
 chamber.place_piece(piece1,1,1)
-piece2 = Piece([(0,0)], set())
+piece2 = Piece([(0,0),(0,1)], set())
 chamber.place_piece(piece2,1,2)
+
+
+
