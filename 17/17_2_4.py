@@ -43,9 +43,7 @@ steps:
 """
 
 
-#todo: make initial filled row of 1x1 pieces, test larger pieces, implement heuristic search without loops
-# for making an initial filled row, we need to either explicitly give the adjecencies or make a function that can update it
-# we also need to make the inf high sides, somehow
+#todo: implement heuristic search without cycles, test larger pieces,
 import numpy as np
 
 class Piece:
