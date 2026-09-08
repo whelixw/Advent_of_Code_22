@@ -20,10 +20,10 @@ data structures:
 
     path: the highest path outlines a perimeter that can be used to simplify the pointer dict.
     any pieces under the path can be removed and all rows under can be ignored as well
-    this will reduce the offset. a legal path has to start at one boundary and end at the other
+    this will reduce the offset and memory for pieces. a legal path has to start at one boundary and end at the other
 
 algorithms:
-    search: not really e dfs, always picks highest piece until it can form a "bridge"
+    search: not really e dfs, always picks highest piece until it can form a "bridge" that connects each side
         by handling the pieces as nodes. the search state needs to contain the selected piece
         as well as all edges used earlier. we need a way of avoiding cycles.
         this can probably be accomplished by removing the set of used edges?
@@ -39,17 +39,27 @@ steps:
         a node is created, connected to any other node that is dist 1 away, incl diagonal
         the path should be updated: the new path HAS to include the new piece and HAS to have some subset of last path
 
-
 """
 
 
-#todo: implement heuristic search without cycles, test larger pieces,
+#todo: implement heuristic search without cycles, test larger pieces
+# a new piece has neighbours. we can define a number cases for how to augment the pieceset
+# i think i intended the set to be a way to narrow the neighbour search to only relevant pieces,
+#   not as a replacement for the path
+# if the piece is one the perimiter its always at the start or end of the path.
+# otherwise, if the placed piece only has one neighbour
+#   substitute one occurence of neighbour with neighbour -> placed_piece -> neighbour
+# if the placed piece has multiple neighbours:
+#   we need to trace the new perimeter, until we reach a subpath in the previous path/pieceset
+#   what is the first/last point in the previous path that the newly placed piece can be reached?
+#   if first and last point is not identical (which it shouldn't be since multiple neighbours) it can form a "bridge"
+#   any pieces not on the new path can then be pruned
 import numpy as np
 
 class Piece:
     def __init__(self, shape = [], neighbours = set()):
         self.shape = shape #list of tuples of the shape
-        self.neighbours = neighbours
+        self.neighbours = neighbours #point to other pieces it is touching
         self.x = None #origin point
         self.y = None #origin point
 
@@ -59,6 +69,40 @@ class PieceGrid():
         self.cols = cols
         self.matrix = np.empty((rows, cols), dtype=object)
         self.pieceset = set()
+        self.piece_path = list()
+
+
+    def validate_piece_path(self, input_piece_path):
+        #checks that a path is correctly formed. the path needs to connect the right and left side through pieces
+        index = 0
+        found = False
+        while index < len(input_piece_path):
+            selected_tuple = input_piece_path[index]
+            x,y = selected_tuple
+            #print(index)
+            if index == 0:
+                if y != 0:
+                    return False
+                else:
+                    index += 1
+                    continue
+            elif index == len(input_piece_path)-1:
+                if y != 6:
+                    return False
+                else: return True
+            elif found == True:
+                #print("bb")
+                found = False
+                continue
+            else:
+                for neighbour in self.matrix[x][y].neighbours:
+                    if neighbour == input_piece_path[index+1]:
+                        index += 1
+                        found = True
+                        #print("aa")
+                        break
+            if not found:
+                return False
 
     def check_bounds(self, r, c, error=True):
         if r >= self.rows or c >= self.cols:
@@ -67,12 +111,21 @@ class PieceGrid():
         else:
             return (r, c)
 
+    def neighbours_to_path_point(self, piece):
+        max_index = -1
+        for neighbour in piece.neighbours:
+            for index, tuple in enumerate(self.piece_path):
+                if neighbour == tuple and index < max_index:
+                    max_index = index
+        return index
+
     def place_piece(self, piece, origin_x, origin_y):
 
 
         buffer = set()
         print("place", piece.shape)
-        for dr, dc in piece.shape:
+        print(chamber.matrix)
+        for dr, dc in piece.shape: #check all cells are free to for the piece to be inserted
             r = origin_x+dr
             c = origin_y+dc
 
@@ -110,8 +163,21 @@ class PieceGrid():
                                 print(self.matrix[r][c].neighbours)
             print("placing")
             print(piece)
+            #self.x, self.y = pairs[0], pairs[1]
             self.matrix[pairs[0]][pairs[1]] = piece
+
+
+        #update piece path
         self.pieceset.add(piece)
+        test = self.neighbours_to_path_point(piece)
+        print("ok?")
+        print(test)
+        #TODO: clean path and pieceset
+        #search through neighbours to see where in the path you can place it
+        # the deeper in the path the better
+
+        #for coord_tuple in piece.neighbours:
+
 
 
     def remove_piece(self, piece):
@@ -137,10 +203,11 @@ def initiate_chamber_base(chamber):
             neighbours.append(initial_coords[index-1])
         if index != len(initial_coords)-1:
             neighbours.append(initial_coords[index+1])
-        chamber.matrix[item] = Piece([(0,0)], set(neighbours))
+        chamber.matrix[item] = Piece([item], set(neighbours))
         chamber.matrix[item].x = item[0]
         chamber.matrix[item].y = item[1]
-        chamber.pieceset.add(chamber.matrix[item])
+        chamber.pieceset.add(item)
+        chamber.piece_path.append(item)
     return chamber
 
 chamber = PieceGrid(2,7)
@@ -148,9 +215,10 @@ chamber = PieceGrid(2,7)
 chamber = initiate_chamber_base(chamber)
 
 piece1 = Piece([(0,0)], set())
-chamber.place_piece(piece1,1,1)
-piece2 = Piece([(0,0),(0,1)], set())
-chamber.place_piece(piece2,1,2)
+chamber.place_piece(piece1,0,0)
+
+#todo: piece1 has wrong neighbours
+#TODO: piece1 is at 0,0 and therefore the path should be update to include this and exclude 1,0
 
 
 
