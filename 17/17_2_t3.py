@@ -155,6 +155,9 @@ def drop_new_piece(chamber, path, movement_list, tetris_shape, time, offset):
 
     def add_piece_to_path(piece_coords, path, matrix):
         #TODO: needs how to determine if piece can reach the walls or just reach first/last pos in path
+        # Also, the new piece coords should always be in path before reducing. This should not happen:
+        """prev. path:  [(9, 0), (9, 1), (8, 2), (7, 2), (8, 2), (9, 3), (10, 4), (11, 3), (10, 2), (9, 2), (10, 3), (11, 3), (12, 4), (12, 5), (13, 6)]
+        resulting path :  [(9, 0), (9, 1), (8, 2), (7, 2), (8, 2), (9, 3), (8, 2), (7, 2), (8, 2), (9, 2), (10, 3), (11, 3), (12, 4), (12, 5), (13, 6)]"""
 
         # Direction vectors in order of preference
         # North, Northwest, West, Southwest, South, Southeast, East, Northeast
