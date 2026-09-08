@@ -104,6 +104,17 @@ class PieceGrid():
             if not found:
                 return False
 
+    def restructure_piece_path(self, piece, path_cuts): #make a new path that excludes the cuts
+        if path_cuts[0] == None:
+            self.piece_path = [(piece.x, piece.y)] + self.piece_path[path_cuts[1]:]
+        elif path_cuts[1] == None:
+            self.piece_path = self.piece_path[:path_cuts[0]] + [(piece.x, piece.y)]
+        else:
+            self.piece_path = self.piece_path[:path_cuts[0]] + [(piece.x, piece.y)] + self.piece_path[path_cuts[1]:]
+        self.pieceset -= set(self.piece_path[path_cuts[0]:path_cuts[1]]) #remove pieces from pieceset
+        #print("new", self.piece_path)
+        #return self.piece_path
+
     def check_bounds(self, r, c, error=True):
         if r >= self.rows or c >= self.cols:
             if error:
@@ -111,13 +122,23 @@ class PieceGrid():
         else:
             return (r, c)
 
-    def neighbours_to_path_point(self, piece):
+    def neighbours_to_path_point(self, piece): #figures out where the piece can be inserted in the path
         max_index = -1
+        min_index = len(self.piece_path)
         for neighbour in piece.neighbours:
-            for index, tuple in enumerate(self.piece_path):
-                if neighbour == tuple and index < max_index:
-                    max_index = index
-        return index
+            index = self.piece_path.index(neighbour)
+            if index > max_index:
+                max_index = index
+            if index < min_index:
+                min_index = index
+        if piece.x == 0:
+            min_index = None
+        if piece.x == 6:
+            max_index = None
+        path_cuts = min_index, max_index
+        return path_cuts
+
+
 
     def place_piece(self, piece, origin_x, origin_y):
 
@@ -146,16 +167,17 @@ class PieceGrid():
         ]
         piece.x = origin_x
         piece.y = origin_y
+        #print("buffer", buffer)
         for pairs in buffer:
             #check for neighbours
             for d in directions:
                 r, c = (pairs[0]+d[0], pairs[1]+d[1])
-                print(r,c)
-                if (r,c) not in buffer:
+                #print(r,c)
+                if (r,c) not in buffer and not(r < 0 or c < 0):
                     if self.check_bounds(r,c, False) != None:
-                        if r and c:
+                        if (r != None and c != None):
                             if self.matrix[r][c] is not None:
-                                print("neighbour at: ", tuple([self.matrix[r][c].x, self.matrix[r][c].y]))
+                                print("neighbour at: ", tuple([self.matrix[r][c].x, self.matrix[r][c].y]), r, c)
                                 piece.neighbours.add((self.matrix[r][c].x, self.matrix[r][c].y)) # add neighbours coords to set
                                 #piece.neighbours.add(tuple([self.matrix[r][c].x, self.matrix[r][c].y]))
                                 print(piece.neighbours)
@@ -168,15 +190,18 @@ class PieceGrid():
 
 
         #update piece path
-        self.pieceset.add(piece)
-        test = self.neighbours_to_path_point(piece)
+
+        self.pieceset.add((piece.x, piece.y))
+        path_cuts = self.neighbours_to_path_point(piece)
         print("ok?")
-        print(test)
+        print(path_cuts)
+        self.restructure_piece_path(piece, path_cuts)
+
+
         #TODO: clean path and pieceset
         #search through neighbours to see where in the path you can place it
         # the deeper in the path the better
 
-        #for coord_tuple in piece.neighbours:
 
 
 
@@ -216,9 +241,6 @@ chamber = initiate_chamber_base(chamber)
 
 piece1 = Piece([(0,0)], set())
 chamber.place_piece(piece1,0,0)
-
-#todo: piece1 has wrong neighbours
-#TODO: piece1 is at 0,0 and therefore the path should be update to include this and exclude 1,0
 
 
 
